@@ -1,0 +1,40 @@
+{
+  "author": ["Noxix"],
+  "description": "Set up and configure an AI assistant (or chat) cog for your server with one of OpenAI's ChatGPT language models, with configurable prompt injection, dynamic embeddings, custom function calling, and more",
+  "disabled": false,
+  "end_user_data_statement": "This cog stores prompts and OpenAI API keys on a per server basis. If enabled, conversations with the bot are also persistently stored",
+  "hidden": false,
+  "install_msg": "Done",
+  "min_bot_version": "3.5.0",
+  "min_python_version": [3, 10, 0],
+  "permissions": ["read_messages", "send_messages", "embed_links", "attach_files"],
+  "required_cogs": {},
+  "requirements": [
+    "aiocache",
+    "chromadb",
+    "json5",
+    "msgpack",
+    "numpy",
+    "openai>=1.99.2",
+    "pandas",
+    "pydantic",
+    "pytz",
+    "sentry_sdk",
+    "tenacity",
+    "tiktoken>=0.9.0",
+    "ujson"
+  ],
+  "short": "Advanced AI assistant (or chat) cog for your server with OpenAI's ChatGPT language models",
+  "tags": [
+    "utility",
+    "assistant",
+    "gpt",
+    "ai",
+    "chat",
+    "chatgpt",
+    "chat-gpt",
+    "llm",
+    "language model"
+  ],
+  "type": "COG"
+}
