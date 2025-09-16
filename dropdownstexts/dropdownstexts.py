@@ -1,4 +1,4 @@
-﻿from noxix_utils import Cog, CogsUtils, Menu  # isort:skip
+﻿from AAA3A_utils import Cog, CogsUtils, Menu  # isort:skip
 from redbot.core import commands, Config  # isort:skip
 from redbot.core.bot import Red  # isort:skip
 from redbot.core.i18n import Translator, cog_i18n  # isort:skip
@@ -26,7 +26,7 @@ class MyMessageConverter(commands.MessageConverter):
         if message.author != ctx.me:
             raise commands.UserFeedbackCheckFailure(
                 _(
-                    "I have to be the author of the message. You can use EmbedUtils by noxix to send one."
+                    "I have to be the author of the message. You can use EmbedUtils by AAA3A to send one."
                 )
             )
         return message

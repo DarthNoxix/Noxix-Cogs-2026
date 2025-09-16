@@ -1,4 +1,4 @@
-﻿from noxix_utils import Cog, CogsUtils, Menu, Loop  # isort:skip
+﻿from AAA3A_utils import Cog, CogsUtils, Menu, Loop  # isort:skip
 from redbot.core import commands, Config  # isort:skip
 from redbot.core.bot import Red  # isort:skip
 from redbot.core.i18n import Translator, cog_i18n  # isort:skip
@@ -104,7 +104,7 @@ class ConsoleLog:
 class ConsoleLogs(DashboardIntegration, Cog):
     """A cog to display the console logs, with buttons and filter options, and to send commands errors in configured channels!"""
 
-    __authors__: typing.List[str] = ["noxix", "Tobotimus"]
+    __authors__: typing.List[str] = ["AAA3A", "Tobotimus"]
 
     def __init__(self, bot: Red) -> None:
         super().__init__(bot=bot)

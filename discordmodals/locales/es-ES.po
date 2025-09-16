@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: noxix-cogs\n"
+"Project-Id-Version: aaa3a-cogs\n"
 "POT-Creation-Date: 2024-07-20 22:14+0200\n"
 "PO-Revision-Date: 2024-07-20 20:18\n"
 "Last-Translator: \n"
@@ -10,16 +10,16 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: redgettext 3.4.2\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Crowdin-Project: noxix-cogs\n"
+"X-Crowdin-Project: aaa3a-cogs\n"
 "X-Crowdin-Project-ID: 531090\n"
 "X-Crowdin-Language: es-ES\n"
-"X-Crowdin-File: /[noxix-noxix.noxix-cogs] main/discordmodals/locales/messages.pot\n"
+"X-Crowdin-File: /[AAA3A-AAA3A.AAA3A-cogs] main/discordmodals/locales/messages.pot\n"
 "X-Crowdin-File-ID: 84\n"
 "Language: es_ES\n"
 
 #: discordmodals\discordmodals.py:34
-msgid "I have to be the author of the message. You can use EmbedUtils by noxix to send one."
-msgstr "Tengo que ser el autor del mensaje. Puede utilizar EmbedUtils de noxix para enviar uno."
+msgid "I have to be the author of the message. You can use EmbedUtils by AAA3A to send one."
+msgstr "Tengo que ser el autor del mensaje. Puede utilizar EmbedUtils de AAA3A para enviar uno."
 
 #: discordmodals\discordmodals.py:111
 msgid "Error parsing YAML. Please make sure the format is valid (a YAML validator may help)"

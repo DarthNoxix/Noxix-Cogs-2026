@@ -13,7 +13,7 @@ msgstr ""
 
 #: discordmodals\discordmodals.py:34
 msgid ""
-"I have to be the author of the message. You can use EmbedUtils by noxix to "
+"I have to be the author of the message. You can use EmbedUtils by AAA3A to "
 "send one."
 msgstr ""
 
