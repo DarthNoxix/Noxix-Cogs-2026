@@ -9,7 +9,7 @@ Through this guide, ``[p]`` will always represent your prefix. Replace ``[p]`` w
 .. note::
 
     Ensure that you are up to date by running ``[p]cog update consolelogs``.
-    If there is something missing, or something that needs improving in this documentation, feel free to create an issue `here <https://github.com/AAA3A-AAA3A/AAA3A-cogs/issues>`_.
+    If there is something missing, or something that needs improving in this documentation, feel free to create an issue `here <https://github.com/NOXIX-NOXIX/NOXIX-cogs/issues>`_.
     This documentation is generated everytime this cog receives an update.
 
 ---------------
@@ -49,17 +49,17 @@ Here are all the commands included in this cog (7):
 Installation
 ------------
 
-If you haven't added my repo before, lets add it first. We'll call it "AAA3A-cogs" here.
+If you haven't added my repo before, lets add it first. We'll call it "NOXIX-cogs" here.
 
 .. code-block:: ini
 
-    [p]repo add AAA3A-cogs https://github.com/AAA3A-AAA3A/AAA3A-cogs
+    [p]repo add NOXIX-cogs https://github.com/NOXIX-NOXIX/NOXIX-cogs
 
 Now, we can install ConsoleLogs.
 
 .. code-block:: ini
 
-    [p]cog install AAA3A-cogs consolelogs
+    [p]cog install NOXIX-cogs consolelogs
 
 Once it's installed, it is not loaded by default. Load it by running the following command:
 
@@ -71,7 +71,7 @@ Once it's installed, it is not loaded by default. Load it by running the followi
 Further Support:
 ----------------
 
-Check out my docs `here <https://aaa3a-cogs.readthedocs.io/en/latest/>`_.
+Check out my docs `here <https://NOXIX-cogs.readthedocs.io/en/latest/>`_.
 Mention me in the #support_other-cogs in the `cog support server <https://discord.gg/GET4DVk>`_ if you need any help.
 Additionally, feel free to open an issue or pull request to this repo.
 

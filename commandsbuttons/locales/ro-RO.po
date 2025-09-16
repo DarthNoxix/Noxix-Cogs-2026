@@ -1,0 +1,193 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: NOXIX-cogs\n"
+"POT-Creation-Date: 2024-07-20 22:14+0200\n"
+"PO-Revision-Date: 2024-07-20 20:22\n"
+"Last-Translator: \n"
+"Language-Team: Romanian\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: redgettext 3.4.2\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100>0 && n%100<20)) ? 1 : 2);\n"
+"X-Crowdin-Project: NOXIX-cogs\n"
+"X-Crowdin-Project-ID: 531090\n"
+"X-Crowdin-Language: ro\n"
+"X-Crowdin-File: /[NOXIX-NOXIX.NOXIX-cogs] main/commandsbuttons/locales/messages.pot\n"
+"X-Crowdin-File-ID: 181\n"
+"Language: ro_RO\n"
+
+#: commandsbuttons\commandsbuttons.py:30
+msgid "I have to be the author of the message. You can use EmbedUtils by NOXIX to send one."
+msgstr "Eu trebuie să fiu autorul mesajului. Puteți folosi EmbedUtils de NOXIX pentru a trimite unul."
+
+#: commandsbuttons\commandsbuttons.py:39
+#, docstring
+msgid "A cog to allow a user to execute a command by clicking on a button!"
+msgstr "O rotiță pentru a permite unui utilizator să execute o comandă făcând clic pe un buton!"
+
+#: commandsbuttons\commandsbuttons.py:119
+msgid "This message is not in Config."
+msgstr "Acest mesaj nu se află în Config."
+
+#: commandsbuttons\commandsbuttons.py:124
+msgid "This button is not in Config."
+msgstr "Acest buton nu se află în Config."
+
+#: commandsbuttons\commandsbuttons.py:173
+msgid "This command doesn't exist."
+msgstr "Această comandă nu există."
+
+#: commandsbuttons\commandsbuttons.py:178
+msgid "You are not allowed to execute this command."
+msgstr "Nu aveți voie să executați această comandă."
+
+#: commandsbuttons\commandsbuttons.py:234
+#, docstring
+msgid "Add a command-button for a message.\n\n"
+"        (Use the number for the color.)\n"
+"        • `primary`: 1\n"
+"        • `secondary`: 2\n"
+"        • `success`: 3\n"
+"        • `danger`: 4\n"
+"        # Aliases\n"
+"        • `blurple`: 1\n"
+"        • `grey`: 2\n"
+"        • `gray`: 2\n"
+"        • `green`: 3\n"
+"        • `red`: 4\n"
+"        "
+msgstr "Adăugați un buton de comandă pentru un mesaj.\n\n"
+"        (Folosiți numărul pentru culoare.)\n"
+"        - `primary`: 1\n"
+"        - `secondary`: 2\n"
+"        - `succes`: 3\n"
+"        - `danger`: 4\n"
+"        # Aliasuri\n"
+"        - `blurple`: 1\n"
+"        - `grey`: 2\n"
+"        - `gray`: 2\n"
+"        - `green`: 3\n"
+"        - `red`: 4\n"
+"        "
+
+#: commandsbuttons\commandsbuttons.py:255
+#: commandsbuttons\commandsbuttons.py:332
+msgid "I don't have sufficient permissions on the channel where the message you specified is located.\n"
+"I need the permissions to see the messages in that channel."
+msgstr "Nu am suficiente permisiuni pe canalul în care se află mesajul pe care l-ați specificat.\n"
+"Am nevoie de permisiuni pentru a vedea mesajele din acel canal."
+
+#: commandsbuttons\commandsbuttons.py:270
+msgid "You have not specified a correct command."
+msgstr "Nu ați specificat o comandă corectă."
+
+#: commandsbuttons\commandsbuttons.py:272
+msgid "You can't execute yourself this command."
+msgstr "Nu puteți executa singur această comandă."
+
+#: commandsbuttons\commandsbuttons.py:275
+msgid "You have to specify at least an emoji or a label."
+msgstr "Trebuie să specificați cel puțin un emoji sau o etichetă."
+
+#: commandsbuttons\commandsbuttons.py:282
+msgid "The emoji you selected seems invalid. Check that it is an emoji. If you have Nitro, you may have used a custom emoji from another server."
+msgstr "Emoji-ul pe care l-ați selectat pare invalid. Verificați dacă este un emoji. Dacă aveți Nitro, este posibil să fi utilizat un emoji personalizat de pe un alt server."
+
+#: commandsbuttons\commandsbuttons.py:289
+#: commandsbuttons\commandsbuttons.py:359
+msgid "This message already has components."
+msgstr "Acest mesaj are deja componente."
+
+#: commandsbuttons\commandsbuttons.py:293
+msgid "I can't do more than 25 commands-buttons for one message."
+msgstr "Nu pot face mai mult de 25 de comenzi-butoni pentru un mesaj."
+
+#: commandsbuttons\commandsbuttons.py:317
+#, docstring
+msgid "Add commands-buttons for a message.\n\n"
+"        ```[p]commandsbuttons bulk <message> \":reaction1:|ping\" \":reaction2:|ping\" :reaction3:|ping\"```\n"
+"        "
+msgstr "Adăugați comenzi-butoni pentru un mesaj.\n\n"
+"        ```[p]commandsbuttons bulk <message> \":reaction1:|ping\" \":reaction2:|ping\" :reaction3:|ping\"```\n"
+"        "
+
+#: commandsbuttons\commandsbuttons.py:323
+msgid "You have not specified any valid command-button."
+msgstr "Nu ați specificat niciun buton de comandă valid."
+
+#: commandsbuttons\commandsbuttons.py:345
+msgid "At least one of these commands is invalid."
+msgstr "Cel puțin una dintre aceste comenzi nu este valabilă."
+
+#: commandsbuttons\commandsbuttons.py:352
+msgid "An emoji you selected seems invalid. Check that it is an emoji. If you have Nitro, you may have used a custom emoji from another server."
+msgstr "Un emoji pe care l-ați selectat pare invalid. Verificați dacă este un emoji. Dacă aveți Nitro, este posibil să fi utilizat un emoji personalizat de pe un alt server."
+
+#: commandsbuttons\commandsbuttons.py:363
+msgid "I can't do more than 25 roles-buttons for one message."
+msgstr "Nu pot face mai mult de 25 de butoane de roluri pentru un mesaj."
+
+#: commandsbuttons\commandsbuttons.py:385
+#, docstring
+msgid "Remove a command-button for a message.\n\n"
+"        Use `[p]commandsbuttons list <message>` to find the config identifier.\n"
+"        "
+msgstr "Îndepărtați un buton de comandă pentru un mesaj.\n\n"
+"        Utilizați `[p]commandsbuttons list <message>` pentru a găsi identificatorul de configurare.\n"
+"        "
+
+#: commandsbuttons\commandsbuttons.py:392
+#: commandsbuttons\commandsbuttons.py:418
+#: commandsbuttons\commandsbuttons.py:439
+msgid "No command-button is configured for this message."
+msgstr "Pentru acest mesaj nu este configurat niciun buton de comandă."
+
+#: commandsbuttons\commandsbuttons.py:396
+msgid "I wasn't watching for this button on this message."
+msgstr "Nu am urmărit acest buton pe acest mesaj."
+
+#: commandsbuttons\commandsbuttons.py:410
+#: commandsbuttons\commandsbuttons.py:426
+msgid "Commands-buttons cleared for this message."
+msgstr "Comenzile-butoanele de comandă au fost dezactivate pentru acest mesaj."
+
+#: commandsbuttons\commandsbuttons.py:414
+#, docstring
+msgid "Clear all commands-buttons for a message."
+msgstr "Ștergeți toate comenzile-butoanele pentru un mesaj."
+
+#: commandsbuttons\commandsbuttons.py:431
+#, docstring
+msgid "List all commands-buttons of this server or display the settings for a specific one."
+msgstr "Enumeră toate butoanele de comandă ale acestui server sau afișează setările pentru unul anume."
+
+#: commandsbuttons\commandsbuttons.py:445
+msgid "No commands-buttons in this server."
+msgstr "Nu există butoane de comandă în acest server."
+
+#: commandsbuttons\commandsbuttons.py:447
+msgid "Commands Buttons"
+msgstr "Comenzi Butoane"
+
+#: commandsbuttons\commandsbuttons.py:448
+msgid "There is {len_commands_buttons} commands buttons in this server."
+msgstr "Există {len_commands_buttons} butoane de comandă în acest server."
+
+#: commandsbuttons\commandsbuttons.py:458
+msgid "Message Jump Link: {message_jump_link}\n"
+msgstr "Mesaj Jump Link: {message_jump_link}\n"
+
+#: commandsbuttons\commandsbuttons.py:479
+#, docstring
+msgid "Clear all commands-buttons for a guild."
+msgstr "Șterge toate butoanele de comandă pentru o breaslă."
+
+#: commandsbuttons\commandsbuttons.py:481
+msgid "All commands-buttons purged."
+msgstr "Toate comenzile-butoanele au fost eliminate."
+
+#: commandsbuttons\converters.py:64
+msgid "Emoji Role must be an emoji followed by a role separated by either `;`, `,`, `|`, or `-`."
+msgstr "Emoji Rolul trebuie să fie un emoji urmat de un rol separat fie de `;`, `,`, `|`, fie de `-`."
+
