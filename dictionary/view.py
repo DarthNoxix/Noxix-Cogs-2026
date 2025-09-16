@@ -1,4 +1,4 @@
-from noxix_utils import Menu, CogsUtils  # isort:skip
+from Noxix_Utils import Menu, CogsUtils  # isort:skip
 from redbot.core import commands  # isort:skip
 from redbot.core.i18n import Translator  # isort:skip
 import discord  # isort:skip
