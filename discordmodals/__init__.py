@@ -3,24 +3,24 @@ import importlib
 import sys
 
 try:
-    import Noxix_Utils
+    import noxix_utils
 except ModuleNotFoundError:
     raise errors.CogLoadError(
         "The needed utils to run the cog were not found. Please execute the command `[p]pipinstall git+https://github.com/DarthNoxix/Noxix-Utils.git`. A restart of the bot isn't necessary."
     )
 modules = sorted(
-    [module for module in sys.modules if module.split(".")[0] == "Noxix_Utils"], reverse=True
+    [module for module in sys.modules if module.split(".")[0] == "noxix_utils"], reverse=True
 )
 for module in modules:
     try:
         importlib.reload(sys.modules[module])
     except ModuleNotFoundError:
         pass
-del Noxix_Utils
-# import Noxix_Utils
+del noxix_utils
+# import noxix_utils
 # import json
 # import os
-# __version__ = Noxix_Utils.__version__
+# __version__ = noxix_utils.__version__
 # with open(os.path.join(os.path.dirname(__file__), "utils_version.json"), mode="r") as f:
 #     data = json.load(f)
 # needed_utils_version = data["needed_utils_version"]
