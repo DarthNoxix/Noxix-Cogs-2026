@@ -9,14 +9,14 @@ except ModuleNotFoundError:
         "The needed utils to run the cog were not found. Please execute the command `[p]pipinstall git+https://github.com/DarthNoxix/Noxix-Utils.git`. A restart of the bot isn't necessary."
     )
 modules = sorted(
-    [module for module in sys.modules if module.split(".")[0] == "Noxix_Utils"], reverse=True
+    [module for module in sys.modules if module.split(".")[0] == "noxix_utils"], reverse=True
 )
 for module in modules:
     try:
         importlib.reload(sys.modules[module])
     except ModuleNotFoundError:
         pass
-del Noxix_Utils
+del noxix_utils
 # import noxix_utils
 # import json
 # import os
