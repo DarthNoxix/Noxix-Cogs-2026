@@ -87,10 +87,10 @@ async def unsupported(ctx: commands.Context) -> None:
 
 
 class Cog(commands.Cog):
-    __authors__: typing.List[str] = ["NOXIX"]
+    __authors__: typing.List[str] = ["noxix"]
     __version__: float = 1.0
     __commit__: str = ""
-    __repo_name__: str = "NOXIX-cogs"
+    __repo_name__: str = "noxix-cogs"
     __utils_version__: float = __utils_version__
 
     # bot: Red
@@ -184,41 +184,41 @@ class Cog(commands.Cog):
                 exc_info=e,
             )
         # Add SharedCog.
-        if self.qualified_name != "NOXIX_utils":
+        if self.qualified_name != "noxix_utils":
             try:
-                old_cog = await self.bot.remove_cog("NOXIX_utils")
-                NOXIX_utils = SharedCog(self.bot)
+                old_cog = await self.bot.remove_cog("noxix_utils")
+                noxix_utils = SharedCog(self.bot)
                 try:
                     if getattr(old_cog, "sentry", None) is not None:
-                        NOXIX_utils.sentry = old_cog.sentry
-                        NOXIX_utils.sentry.cog = NOXIX_utils
-                    NOXIX_utils.loops = old_cog.loops
+                        noxix_utils.sentry = old_cog.sentry
+                        noxix_utils.sentry.cog = noxix_utils
+                    noxix_utils.loops = old_cog.loops
                 except AttributeError:
                     pass
                 await self.bot.add_cog(
-                    NOXIX_utils, override=True
+                    noxix_utils, override=True
                 )  # `override` shouldn't be required...
             except discord.ClientException:  # Cog already loaded.
                 pass
             except Exception as e:
-                self.logger.debug("Error when adding the `NOXIX_utils` cog.", exc_info=e)
+                self.logger.debug("Error when adding the `noxix_utils` cog.", exc_info=e)
             else:
-                await NOXIX_utils.sentry.maybe_send_owners(self)
+                await noxix_utils.sentry.maybe_send_owners(self)
         # Count this cog (anonymous stats).
-        NOXIX_utils = self.bot.get_cog("NOXIX_utils")
-        counted_cogs = await NOXIX_utils.config.counted_cogs()
+        noxix_utils = self.bot.get_cog("noxix_utils")
+        counted_cogs = await noxix_utils.config.counted_cogs()
         if self.qualified_name not in counted_cogs:
             try:
                 async with aiohttp.ClientSession(raise_for_status=True) as session:
                     async with session.get(
-                        f"https://api.counterapi.dev/v1/NOXIX-cogs/{self.qualified_name}/up"
+                        f"https://api.counterapi.dev/v1/noxix-cogs/{self.qualified_name}/up"
                     ):
                         pass
             except Exception as e:
                 pass
             else:
                 counted_cogs.append(self.qualified_name)
-                await NOXIX_utils.config.counted_cogs.set(counted_cogs)
+                await noxix_utils.config.counted_cogs.set(counted_cogs)
         # Modify hybrid commands.
         await CogsUtils.add_hybrid_commands(bot=self.bot, cog=self)
 
@@ -227,7 +227,7 @@ class Cog(commands.Cog):
         CogsUtils.close_logger(self.logger)
         # Stop loops.
         for loop in self.loops.copy():
-            if self.qualified_name == "NOXIX_utils" and loop.name == "Sentry Helper":
+            if self.qualified_name == "noxix_utils" and loop.name == "Sentry Helper":
                 continue
             await loop.execute()  # Maybe is it a loop who save data... Might execute it a last time.
             loop.stop_all()
@@ -242,16 +242,16 @@ class Cog(commands.Cog):
                 pass
         self.views.clear()
         # Remove SharedCog.
-        NOXIX_utils: SharedCog = self.bot.get_cog("NOXIX_utils")
-        if NOXIX_utils is not None:
-            if NOXIX_utils.sentry is not None:
-                await NOXIX_utils.sentry.cog_unload(self)
+        noxix_utils: SharedCog = self.bot.get_cog("noxix_utils")
+        if noxix_utils is not None:
+            if noxix_utils.sentry is not None:
+                await noxix_utils.sentry.cog_unload(self)
             if not CogsUtils.at_least_one_cog_loaded(self.bot):
                 try:
-                    discord.utils.get(NOXIX_utils.loops, name="Sentry Helper").stop_all()
+                    discord.utils.get(noxix_utils.loops, name="Sentry Helper").stop_all()
                 except ValueError:
                     pass
-                await self.bot.remove_cog("NOXIX_utils")
+                await self.bot.remove_cog("noxix_utils")
 
     def format_help_for_context(self, ctx: commands.Context) -> str:
         """Thanks Simbad!"""
@@ -265,11 +265,11 @@ class Cog(commands.Cog):
             f"\n**Repo name**: {self.__repo_name__}"
             f"\n**Utils version**: {self.__utils_version__}"
         )
-        if self.qualified_name not in ("NOXIX_utils"):
+        if self.qualified_name not in ("noxix_utils"):
             text += (
                 "\n**Cog documentation**:"
-                f" https://NOXIX-cogs.readthedocs.io/en/latest/cog_{self.qualified_name.lower()}.html\n**Translate"
-                " my cogs**: https://crowdin.com/project/NOXIX-cogs"
+                f" https://noxix-cogs.readthedocs.io/en/latest/cog_{self.qualified_name.lower()}.html\n**Translate"
+                " my cogs**: https://crowdin.com/project/noxix-cogs"
             )
         return text
 
@@ -357,7 +357,7 @@ class Cog(commands.Cog):
         return context
 
     async def cog_command_error(self, ctx: commands.Context, error: Exception) -> None:
-        NOXIX_utils = ctx.bot.get_cog("NOXIX_utils")
+        noxix_utils = ctx.bot.get_cog("noxix_utils")
         is_command_error = isinstance(
             error, (commands.CommandInvokeError, commands.HybridCommandError)
         )
@@ -371,9 +371,9 @@ class Cog(commands.Cog):
 
         if is_command_error:
             uuid = uuid4().hex
-            no_sentry = NOXIX_utils is None or getattr(NOXIX_utils, "sentry", None) is None
+            no_sentry = noxix_utils is None or getattr(noxix_utils, "sentry", None) is None
             if not no_sentry:
-                NOXIX_utils.sentry.last_errors[uuid] = {"ctx": ctx, "error": error}
+                noxix_utils.sentry.last_errors[uuid] = {"ctx": ctx, "error": error}
             if isinstance(ctx.command, discord.ext.commands.HybridCommand):
                 _type = "[hybrid|text]" if ctx.interaction is None else "[hybrid|slash]"
             elif ctx.interaction is not None:
@@ -393,13 +393,13 @@ class Cog(commands.Cog):
                 message = message.replace("{command}", ctx.command.qualified_name)
             if (
                 not no_sentry
-                and getattr(NOXIX_utils.sentry, "display_sentry_manual_command", True)
-                and await NOXIX_utils.senderrorwithsentry.can_run(ctx)
-                and not getattr(NOXIX_utils.senderrorwithsentry, "__is_dev__", False)
+                and getattr(noxix_utils.sentry, "display_sentry_manual_command", True)
+                and await noxix_utils.senderrorwithsentry.can_run(ctx)
+                and not getattr(noxix_utils.senderrorwithsentry, "__is_dev__", False)
             ):
                 message += "\n" + inline(
                     "You can send this error to the developer by running the following"
-                    f" command:\n{ctx.prefix}NOXIX_utils senderrorwithsentry {uuid}"
+                    f" command:\n{ctx.prefix}noxix_utils senderrorwithsentry {uuid}"
                 )
             await ctx.send(message)
             asyncio.create_task(ctx.bot._delete_delay(ctx))
@@ -414,7 +414,7 @@ class Cog(commands.Cog):
             exception_log = CogsUtils.replace_var_paths(exception_log)
             ctx.bot._last_exception = exception_log
             if not no_sentry:
-                await NOXIX_utils.sentry.send_command_error(ctx, error)
+                await noxix_utils.sentry.send_command_error(ctx, error)
         elif isinstance(error, commands.UserFeedbackCheckFailure):
             if error.message:
                 message = warning(error.message)

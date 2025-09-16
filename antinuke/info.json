@@ -10,7 +10,7 @@
         "anti",
         "raid"
     ],
-    "requirements": ["git+https://github.com/NOXIX-NOXIX/NOXIX_utils.git", "TagScript"],
+    "requirements": ["git+https://github.com/noxix-noxix/noxix_utils.git", "TagScript"],
     "min_bot_version": "3.5.0",
     "end_user_data_statement": "This cog records the number of times the user has performed an action that may be considered dangerous (e.g. deleting a channel).",
     "hidden": true

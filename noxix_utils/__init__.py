@@ -23,7 +23,7 @@ cog.SharedCog = SharedCog
 
 from .__version__ import __version__
 
-__author__ = "NOXIX"
+__author__ = "noxix"
 __version__ = __version__
 __all__ = [
     "CogsUtils",

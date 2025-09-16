@@ -49,7 +49,7 @@ msgstr ""
 
 #: rolesbuttons\rolesbuttons.py:29
 msgid ""
-"I have to be the author of the message. You can use EmbedUtils by NOXIX to "
+"I have to be the author of the message. You can use EmbedUtils by noxix to "
 "send one."
 msgstr ""
 

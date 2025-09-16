@@ -15,7 +15,7 @@ from io import StringIO
 from pathlib import Path
 
 import pip
-from NOXIX_utils.cog import Cog
+from noxix_utils.cog import Cog
 from redbot import version_info as red_version_info
 from redbot.cogs.downloader.converters import InstalledCog
 from redbot.cogs.downloader.repo_manager import Repo
@@ -67,15 +67,15 @@ class StrConverter(commands.Converter):
         return argument
 
 
-class SharedCog(Cog, name="NOXIX_utils"):
-    """Commands to manage all the cogs in NOXIX-cogs repo!"""
+class SharedCog(Cog, name="noxix_utils"):
+    """Commands to manage all the cogs in noxix-cogs repo!"""
 
     def __init__(self, bot: Red) -> None:
         super().__init__(bot=bot)
 
         self.config: Config = Config.get_conf(
             self,
-            identifier=205192943327321000143939875896557571750,  # int(hashlib.md5(("NOXIX-cogs").encode()).hexdigest(), 16)
+            identifier=205192943327321000143939875896557571750,  # int(hashlib.md5(("noxix-cogs").encode()).hexdigest(), 16)
             force_registration=True,
             cog_name=self.qualified_name,
         )
@@ -109,19 +109,19 @@ class SharedCog(Cog, name="NOXIX_utils"):
         return {}
 
     @commands.is_owner()
-    @commands.hybrid_group(name="NOXIX_utils", aliases=["NOXIX_utils"], hidden=True)
-    async def NOXIX_utils(self, ctx: commands.Context) -> None:
-        """All commands to manage all the cogs from NOXIX-cogs repo."""
+    @commands.hybrid_group(name="noxix_utils", aliases=["noxix_utils"], hidden=True)
+    async def noxix_utils(self, ctx: commands.Context) -> None:
+        """All commands to manage all the cogs from noxix-cogs repo."""
         pass
 
-    @NOXIX_utils.command()
+    @noxix_utils.command()
     async def getlogs(self, ctx: commands.Context, cog: str, level: str = "all") -> None:
-        """Get logs for a cog from NOXIX-cogs"""
+        """Get logs for a cog from noxix-cogs"""
         cog = ctx.bot.get_cog(cog)
         if cog is None:
             raise commands.UserFeedbackCheckFailure(_("This cog is not installed or loaded."))
-        if getattr(cog, "__repo_name__", None) != "NOXIX-cogs":
-            raise commands.UserFeedbackCheckFailure(_("This cog is not a cog from NOXIX-cogs."))
+        if getattr(cog, "__repo_name__", None) != "noxix-cogs":
+            raise commands.UserFeedbackCheckFailure(_("This cog is not a cog from noxix-cogs."))
         if cog.logs == {}:
             raise commands.UserFeedbackCheckFailure(_("This cog does not have any log saved."))
         if level == "stats":
@@ -167,27 +167,27 @@ class SharedCog(Cog, name="NOXIX_utils"):
             )
         await Menu(pages=result).start(ctx)
 
-    @NOXIX_utils.command()
+    @noxix_utils.command()
     async def getdebugloopstatus(self, ctx: commands.Context, cog: str) -> None:
-        """Get debug loop status for a cog from NOXIX-cogs."""
+        """Get debug loop status for a cog from noxix-cogs."""
         cog = ctx.bot.get_cog(cog)
         if cog is None:
             raise commands.UserFeedbackCheckFailure(_("This cog is not installed or loaded."))
-        if getattr(cog, "__repo_name__", None) != "NOXIX-cogs":
-            raise commands.UserFeedbackCheckFailure(_("This cog is not a cog from NOXIX-cogs."))
+        if getattr(cog, "__repo_name__", None) != "noxix-cogs":
+            raise commands.UserFeedbackCheckFailure(_("This cog is not a cog from noxix-cogs."))
         embeds = [loop.get_debug_embed() for loop in cog.loops]
         await Menu(pages=embeds).start(ctx)
 
-    @NOXIX_utils.command(aliases=["clearconfig"])
+    @noxix_utils.command(aliases=["clearconfig"])
     async def resetconfig(
         self, ctx: commands.Context, cog: str, confirmation: bool = False
     ) -> None:
-        """Reset Config for a cog from NOXIX-cogs."""
+        """Reset Config for a cog from noxix-cogs."""
         cog = ctx.bot.get_cog(cog)
         if cog is None:
             raise commands.UserFeedbackCheckFailure(_("This cog is not installed or loaded."))
-        if getattr(cog, "__repo_name__", None) != "NOXIX-cogs":
-            raise commands.UserFeedbackCheckFailure(_("This cog is not a cog from NOXIX-cogs."))
+        if getattr(cog, "__repo_name__", None) != "noxix-cogs":
+            raise commands.UserFeedbackCheckFailure(_("This cog is not a cog from noxix-cogs."))
         if not hasattr(cog, "config") or not isinstance(getattr(cog, "config"), Config):
             raise commands.UserFeedbackCheckFailure(_("This cog doesn't use the Config."))
         if not confirmation:
@@ -200,11 +200,11 @@ class SharedCog(Cog, name="NOXIX_utils"):
                 return
         await getattr(cog, "config").clear_all()
 
-    @NOXIX_utils.command(hidden=True)
+    @noxix_utils.command(hidden=True)
     async def telemetrywithsentry(self, ctx: commands.Context, state: bool) -> None:
-        """Enable or disable Telemetry with Sentry for all cogs from NOXIX-cogs.
+        """Enable or disable Telemetry with Sentry for all cogs from noxix-cogs.
 
-        More details: https://NOXIX-cogs.readthedocs.io/en/latest/repo_telemetry.html
+        More details: https://noxix-cogs.readthedocs.io/en/latest/repo_telemetry.html
         """
         await self.config.sentry.sentry_enabled.set(state)
         self.sentry.sentry_enabled = state
@@ -212,20 +212,20 @@ class SharedCog(Cog, name="NOXIX_utils"):
             await self.sentry.config.sentry.display_sentry_manual_command()
         )
 
-    @NOXIX_utils.command(hidden=True)
+    @noxix_utils.command(hidden=True)
     async def displaysentrymanualcommand(self, ctx: commands.Context, state: bool) -> None:
-        """Enable or disable displaying the command `[p]NOXIX_utils senderrorwithsentry` in commands errors.
+        """Enable or disable displaying the command `[p]noxix_utils senderrorwithsentry` in commands errors.
 
         Defaults is `True`.
         """
         await self.config.sentry.display_sentry_manual_command.set(state)
         self.sentry.display_sentry_manual_command = not self.sentry.sentry_enabled and state
 
-    @NOXIX_utils.command(hidden=True)
+    @noxix_utils.command(hidden=True)
     async def senderrorwithsentry(self, ctx: commands.Context, error: str) -> None:
-        """Send a recent error to the developer of NOXIX's cogs with Sentry (use the code given when the error has been triggered).
+        """Send a recent error to the developer of noxix's cogs with Sentry (use the code given when the error has been triggered).
 
-        More details: https://NOXIX-cogs.readthedocs.io/en/latest/repo_telemetry.html
+        More details: https://noxix-cogs.readthedocs.io/en/latest/repo_telemetry.html
         """
         if error not in self.sentry.last_errors:
             raise commands.UserFeedbackCheckFailure(_("This error does not exist."))
@@ -239,25 +239,25 @@ class SharedCog(Cog, name="NOXIX_utils"):
             ).format(event_id=event_id)
         )
 
-    @NOXIX_utils.command()
+    @noxix_utils.command()
     async def replacementvarpaths(self, ctx: commands.Context, state: bool) -> None:
-        """Replace various var paths in texts sent by cog from NOXIX-cogs.
+        """Replace various var paths in texts sent by cog from noxix-cogs.
 
         Defaults is `True`.
         """
         await self.config.replacement_var_paths.set(state)
         cogsutils.replacement_var_paths = state
 
-    @NOXIX_utils.command()
+    @noxix_utils.command()
     async def tickaftercommandexecution(self, ctx: commands.Context, state: bool) -> None:
-        """Enable or disable sending a tick after each command from NOXIX-cogs.
+        """Enable or disable sending a tick after each command from noxix-cogs.
 
         Defaults is `True`.
         """
         await self.config.tick_after_command_execution.set(state)
         cog.tick_after_command_execution = state
 
-    @NOXIX_utils.command()
+    @noxix_utils.command()
     async def flags(self, ctx: commands.Context, *, content: str) -> None:
         """Use any command with flags."""
         msg: discord.Message = ctx.message
@@ -401,7 +401,7 @@ class SharedCog(Cog, name="NOXIX_utils"):
         except Exception:
             pass
 
-    @NOXIX_utils.command()
+    @noxix_utils.command()
     async def getallfor(
         self,
         ctx: commands.Context,
@@ -421,7 +421,7 @@ class SharedCog(Cog, name="NOXIX_utils"):
             command = None
             check_updates = False
         if repo is not None:
-            if not repo.lower() == "NOXIX".lower():
+            if not repo.lower() == "noxix".lower():
                 try:
                     repo = await Repo.convert(ctx, repo)
                 except commands.CommandError as e:
@@ -462,14 +462,14 @@ class SharedCog(Cog, name="NOXIX_utils"):
         loaded_cogs = [c.lower() for c in ctx.bot.cogs]
         if repo is not None:
             rp = _repos[0]
-            if not isinstance(rp, Repo) and not "NOXIX".lower() in rp.lower():
+            if not isinstance(rp, Repo) and not "noxix".lower() in rp.lower():
                 raise commands.UserFeedbackCheckFailure(
                     _("Repo by the name `{rp}` does not exist.").format(rp=rp)
                 )
             if not isinstance(repo, Repo):
                 found = False
                 for r in await downloader_cog.config.installed_cogs():
-                    if "NOXIX".lower() in str(r).lower():
+                    if "noxix".lower() in str(r).lower():
                         _repos = [downloader_cog._repo_manager.get_repo(str(r))]
                         found = True
                         break

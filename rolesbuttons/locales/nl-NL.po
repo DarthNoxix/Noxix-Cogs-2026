@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: NOXIX-cogs\n"
+"Project-Id-Version: noxix-cogs\n"
 "POT-Creation-Date: 2024-07-21 15:28+0200\n"
 "PO-Revision-Date: 2024-07-21 13:32\n"
 "Last-Translator: \n"
@@ -10,10 +10,10 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: redgettext 3.4.2\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Crowdin-Project: NOXIX-cogs\n"
+"X-Crowdin-Project: noxix-cogs\n"
 "X-Crowdin-Project-ID: 531090\n"
 "X-Crowdin-Language: nl\n"
-"X-Crowdin-File: /[NOXIX-NOXIX.NOXIX-cogs] main/rolesbuttons/locales/messages.pot\n"
+"X-Crowdin-File: /[noxix-noxix.noxix-cogs] main/rolesbuttons/locales/messages.pot\n"
 "X-Crowdin-File-ID: 96\n"
 "Language: nl_NL\n"
 
@@ -42,8 +42,8 @@ msgid "Emoji Role must be an emoji followed by a role separated by either `;`, `
 msgstr "Emoji Rol moet een emoji zijn gevolgd door een rol gescheiden door `;`, `,`, `|`, of `-`."
 
 #: rolesbuttons\rolesbuttons.py:29
-msgid "I have to be the author of the message. You can use EmbedUtils by NOXIX to send one."
-msgstr "Ik moet de auteur van het bericht zijn. Je kunt EmbedUtils van NOXIX gebruiken om er een te versturen."
+msgid "I have to be the author of the message. You can use EmbedUtils by noxix to send one."
+msgstr "Ik moet de auteur van het bericht zijn. Je kunt EmbedUtils van noxix gebruiken om er een te versturen."
 
 #: rolesbuttons\rolesbuttons.py:38
 #, docstring

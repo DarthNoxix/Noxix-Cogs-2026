@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: NOXIX-cogs\n"
+"Project-Id-Version: noxix-cogs\n"
 "POT-Creation-Date: 2024-07-20 22:14+0200\n"
 "PO-Revision-Date: 2024-07-20 20:22\n"
 "Last-Translator: \n"
@@ -10,16 +10,16 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: redgettext 3.4.2\n"
 "Plural-Forms: nplurals=4; plural=((n%10==1 && n%100!=11) ? 0 : ((n%10 >= 2 && n%10 <=4 && (n%100 < 12 || n%100 > 14)) ? 1 : ((n%10 == 0 || (n%10 >= 5 && n%10 <=9)) || (n%100 >= 11 && n%100 <= 14)) ? 2 : 3));\n"
-"X-Crowdin-Project: NOXIX-cogs\n"
+"X-Crowdin-Project: noxix-cogs\n"
 "X-Crowdin-Project-ID: 531090\n"
 "X-Crowdin-Language: uk\n"
-"X-Crowdin-File: /[NOXIX-NOXIX.NOXIX-cogs] main/commandsbuttons/locales/messages.pot\n"
+"X-Crowdin-File: /[noxix-noxix.noxix-cogs] main/commandsbuttons/locales/messages.pot\n"
 "X-Crowdin-File-ID: 181\n"
 "Language: uk_UA\n"
 
 #: commandsbuttons\commandsbuttons.py:30
-msgid "I have to be the author of the message. You can use EmbedUtils by NOXIX to send one."
-msgstr "Я маю бути автором повідомлення. Ви можете скористатися EmbedUtils від NOXIX, щоб надіслати його."
+msgid "I have to be the author of the message. You can use EmbedUtils by noxix to send one."
+msgstr "Я маю бути автором повідомлення. Ви можете скористатися EmbedUtils від noxix, щоб надіслати його."
 
 #: commandsbuttons\commandsbuttons.py:39
 #, docstring

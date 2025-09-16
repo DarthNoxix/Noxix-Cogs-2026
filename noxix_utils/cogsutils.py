@@ -34,7 +34,7 @@ replacement_var_paths: bool = True
 
 
 class CogsUtils:
-    """Utils for NOXIX-cogs!"""
+    """Utils for noxix-cogs!"""
 
     # def __init__(
     #     self, cog: typing.Optional[commands.Cog] = None, bot: typing.Optional[Red] = None
@@ -117,7 +117,7 @@ class CogsUtils:
             return (
                 logging.getLogger(name)
                 if name.startswith("red.")
-                else logging.getLogger(f"red.NOXIX-cogs.{name}")
+                else logging.getLogger(f"red.noxix-cogs.{name}")
             )
 
         logger = (
@@ -885,7 +885,7 @@ class CogsUtils:
         for cog in bot.cogs.values():
             if cog.qualified_name in ("CogGuide"):
                 continue
-            if getattr(cog, "__repo_name__", None) == "NOXIX-cogs":
+            if getattr(cog, "__repo_name__", None) == "noxix-cogs":
                 cogs[cog.qualified_name] = cog
         return cogs
 

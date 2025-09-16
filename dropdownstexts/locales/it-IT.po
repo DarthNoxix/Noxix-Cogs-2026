@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: NOXIX-cogs\n"
+"Project-Id-Version: noxix-cogs\n"
 "POT-Creation-Date: 2024-07-20 22:14+0200\n"
 "PO-Revision-Date: 2024-07-21 15:14\n"
 "Last-Translator: \n"
@@ -10,10 +10,10 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: redgettext 3.4.2\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Crowdin-Project: NOXIX-cogs\n"
+"X-Crowdin-Project: noxix-cogs\n"
 "X-Crowdin-Project-ID: 531090\n"
 "X-Crowdin-Language: it\n"
-"X-Crowdin-File: /[NOXIX-NOXIX.NOXIX-cogs] main/dropdownstexts/locales/messages.pot\n"
+"X-Crowdin-File: /[noxix-noxix.noxix-cogs] main/dropdownstexts/locales/messages.pot\n"
 "X-Crowdin-File-ID: 158\n"
 "Language: it_IT\n"
 
@@ -22,8 +22,8 @@ msgid "Dropdown Text must be an `emoji`, followed by a `label` and a `text_or_me
 msgstr "Il testo a discesa deve essere un `emoji`, seguito da una `etichetta` e da un `testo_o_messaggio`, separati da `;`, `,`, `|` o `-`."
 
 #: dropdownstexts\dropdownstexts.py:28
-msgid "I have to be the author of the message. You can use EmbedUtils by NOXIX to send one."
-msgstr "Devo essere l'autore del messaggio. È possibile utilizzare EmbedUtils di NOXIX per inviarne uno."
+msgid "I have to be the author of the message. You can use EmbedUtils by noxix to send one."
+msgstr "Devo essere l'autore del messaggio. È possibile utilizzare EmbedUtils di noxix per inviarne uno."
 
 #: dropdownstexts\dropdownstexts.py:37
 #, docstring

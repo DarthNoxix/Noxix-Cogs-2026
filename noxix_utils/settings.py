@@ -203,7 +203,7 @@ class CustomMessageConverter(commands.Converter, typing.Dict):
             kwargs["embed"] = kwargs["embed"].to_dict()
         return kwargs
 
-    # Copied from `NOXIX_utils.dev.DevSpace`.
+    # Copied from `noxix_utils.dev.DevSpace`.
     def __repr__(self) -> str:
         items = [f"{k}={v!r}" for k, v in self.__dict__.items()]
         return (
