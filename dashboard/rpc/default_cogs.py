@@ -1,4 +1,4 @@
-from AAA3A_utils import CogsUtils  # isort:skip
+from Noxix_Utils import CogsUtils  # isort:skip
 from redbot.core import commands  # isort:skip
 from redbot.core.bot import Red  # isort:skip
 from redbot.core.i18n import Translator  # isort:skip
