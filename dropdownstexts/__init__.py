@@ -6,7 +6,7 @@ try:
     import noxix_utils
 except ModuleNotFoundError:
     raise errors.CogLoadError(
-        "The needed utils to run the cog were not found. Please execute the command `[p]pipinstall git+https://github.com/noxix-noxix/noxix_utils.git`. A restart of the bot isn't necessary."
+        "The needed utils to run the cog were not found. Please execute the command `[p]pipinstall .git`. A restart of the bot isn't necessary."
     )
 modules = sorted(
     [module for module in sys.modules if module.split(".")[0] == "noxix_utils"], reverse=True
@@ -30,7 +30,7 @@ del noxix_utils
 #     )
 # elif __version__ < needed_utils_version:
 #     raise errors.CogLoadError(
-#         "The needed utils to run the cog has a lower version than the one supported by this version of the cog. Please execute the command `[p]pipinstall --upgrade git+https://github.com/noxix-noxix/noxix_utils.git`. A restart of the bot isn't necessary."
+#         "The needed utils to run the cog has a lower version than the one supported by this version of the cog. Please execute the command `[p]pipinstall --upgrade .git`. A restart of the bot isn't necessary."
 #     )
 
 from redbot.core.bot import Red  # isort:skip
