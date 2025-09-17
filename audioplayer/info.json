@@ -1,0 +1,13 @@
+{
+    "author": ["Noxix"],
+    "min_bot_version": "3.5.0",
+    "min_python_version": [3,9,0],
+    "description": "Live player interface for the audio cog. Updates every 10 seconds or whenever the song changes or you press a button. Stays at the bottom of chat for as long as there is audio playing.",
+    "hidden": false,
+    "install_msg": "Done.",
+    "required_cogs": {},
+    "requirements": [],
+    "short": "Live player interface for the audio cog.",
+    "end_user_data_statement": "This cog does not store user data.",
+    "tags": ["holo", "voice", "audio", "music", "player", "buttons", "live"]
+}

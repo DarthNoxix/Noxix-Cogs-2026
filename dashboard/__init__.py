@@ -16,7 +16,7 @@ for module in modules:
         importlib.reload(sys.modules[module])
     except ModuleNotFoundError:
         pass
-del Noxix_Utils
+del noxix_utils
 # import noxix_utils
 # import json
 # import os
