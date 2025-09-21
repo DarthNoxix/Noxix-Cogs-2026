@@ -365,7 +365,7 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
             await ctx.send(part)
 
     # ───────────────── commands ──────────────────
-    @commands.hybrid_command(name="ask")
+    @commands.hybrid_command(name="openchatask")
     @discord.app_commands.describe(
         message="Your message to the OpenWebUI assistant",
         outputfile="Optional: Save response as a file (filename with extension)",
@@ -390,9 +390,9 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
         `last` - Resend the last message from the conversation
         
         **Examples:**
-        `/ask message: "Write a Python script" outputfile: "script.py"`
-        `/ask message: "Explain this code" extract: true`
-        `/ask message: "Continue" last: true`
+        `/openchatask message: "Write a Python script" outputfile: "script.py"`
+        `/openchatask message: "Explain this code" extract: true`
+        `/openchatask message: "Continue" last: true`
         """
         if ctx.interaction:
             await ctx.interaction.response.defer()
@@ -425,7 +425,7 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
         
         await self.q.put((ctx, message))
 
-    @commands.hybrid_command(name="assistanthelp")
+    @commands.hybrid_command(name="openchathelp")
     async def openwebui_chat_help(self, ctx: commands.Context):
         """Get help using the OpenWebUI assistant"""
         txt = (
@@ -436,7 +436,7 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
 `[p]openwebuiconvostats` - view your conversation message count/token usage for that convo.
 `[p]openwebuiclearconvo` - reset your conversation for the current channel/thread/forum.
 `[p]openwebuishowconvo` - get a json dump of your current conversation (this is mostly for debugging)
-        `[p]openwebuichat` or `/ask` - command prefix for chatting with the bot outside of the live chat, or just @ it.
+        `[p]openwebuichat` or `/openchatask` - command prefix for chatting with the bot outside of the live chat, or just @ it.
 
 ### Chat Arguments
 `[p]openwebuichat --last` - resend the last message of the conversation.
@@ -615,7 +615,7 @@ If a file has no extension it will still try to read it only if it can be decode
         await self.config.memories.set(mems)
         await ctx.send("❌ Memory removed from the royal archives.")
 
-    @commands.hybrid_command(name="addmemory")
+    @commands.hybrid_command(name="openchataddmemory")
     @commands.guild_only()
     @discord.app_commands.describe(
         title="The title/name for this memory (max 100 characters)",
@@ -658,7 +658,7 @@ If a file has no extension it will still try to read it only if it can be decode
                 log.error("Failed to add memory", exc_info=e)
                 await ctx.send("An error occurred while adding the memory. Please try again.")
 
-    @commands.hybrid_command(name="memoryviewer")
+    @commands.hybrid_command(name="openchatmemoryviewer")
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
     async def memory_viewer(self, ctx: commands.Context):
@@ -675,7 +675,7 @@ If a file has no extension it will still try to read it only if it can be decode
         )
         await view.start()
 
-    @commands.hybrid_command(name="memoryquery")
+    @commands.hybrid_command(name="openchatmemoryquery")
     @commands.bot_has_permissions(embed_links=True)
     @discord.app_commands.describe(query="Search query to find related memories")
     async def test_embedding_response(self, ctx: commands.Context, *, query: str):
@@ -1461,12 +1461,12 @@ If a file has no extension it will still try to read it only if it can be decode
                 "title": "Basic Usage",
                 "content": """
 **First Chat:**
-`/ask message: "Hello! How are you today?"`
+`/openchatask message: "Hello! How are you today?"`
 
 **Chat with Arguments:**
-- `/ask message: "Write a Python script" extract: true` (extract code blocks)
-- `/ask message: "Write a Python script" outputfile: "script.py"` (save as file)
-- `/ask message: "Continue" last: true` (resend last message)
+- `/openchatask message: "Write a Python script" extract: true` (extract code blocks)
+- `/openchatask message: "Write a Python script" outputfile: "script.py"` (save as file)
+- `/openchatask message: "Continue" last: true` (resend last message)
 
 **File Upload:**
 Upload any supported file with your message - the bot will read and include it automatically.
@@ -1491,9 +1491,9 @@ Data: .sql, .pde
 - **Hybrid Approach**: Combines both for optimal results
 
 **Memory Commands:**
-- `/addmemory <title> <description>` - Add a memory
-- `/memoryviewer` - Interactive memory viewer
-- `/memoryquery <query>` - Search memories
+- `/openchataddmemory <title> <description>` - Add a memory
+- `/openchatmemoryviewer` - Interactive memory viewer
+- `/openchatmemoryquery <query>` - Search memories
 
 **Memory Types:**
 - **User Memories**: Created manually via commands
@@ -1741,7 +1741,7 @@ Data: .sql, .pde
         
         await ctx.send(embed=embed)
 
-    @commands.hybrid_command(name="convostats")
+    @commands.hybrid_command(name="openchatconvostats")
     async def openwebuiconvostats(self, ctx):
         """View your conversation statistics for this channel."""
         conf = self.db.get_conf(ctx.guild)
@@ -1796,7 +1796,7 @@ Data: .sql, .pde
         embed = await view.get_embed()
         await ctx.send(embed=embed, view=view)
 
-    @commands.hybrid_command(name="clearconvo")
+    @commands.hybrid_command(name="openchatclearconvo")
     async def openwebuiclearconvo(self, ctx):
         """Clear your conversation with the OpenWebUI assistant in this channel."""
         conversation = self.db.get_conversation(ctx.author.id, ctx.channel.id, ctx.guild.id)
@@ -1804,7 +1804,7 @@ Data: .sql, .pde
         await self.save_conf()
         await ctx.send("✅ Your conversation with the OpenWebUI assistant has been cleared.")
 
-    @commands.hybrid_command(name="showconvo")
+    @commands.hybrid_command(name="openchatshowconvo")
     async def openwebuishowconvo(self, ctx):
         """Show your current conversation with the OpenWebUI assistant."""
         conversation = self.db.get_conversation(ctx.author.id, ctx.channel.id, ctx.guild.id)
@@ -1916,7 +1916,7 @@ Data: .sql, .pde
         await ctx.send("Conversation has been imported successfully!")
         await self.save_conf()
 
-    @commands.hybrid_command(name="tldr")
+    @commands.hybrid_command(name="openchattldr")
     @commands.guild_only()
     @discord.app_commands.describe(
         timeframe="Time period to summarize (e.g., 1h, 2d, 30m)",
