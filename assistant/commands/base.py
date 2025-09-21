@@ -696,6 +696,53 @@ If a file has no extension it will still try to read it only if it can be decode
         await ctx.send(_("Conversation has been imported successfully!"))
         await self.save_conf()
 
+    @commands.command(name="memory")
+    @commands.guild_only()
+    async def add_memory(self, ctx: commands.Context, title: str, *, description: str):
+        """
+        Add a memory/embedding to the assistant
+
+        This allows you to manually add information that the assistant can reference later.
+        The title should be a brief name for the memory, and the description should contain the information you want the assistant to remember.
+
+        **Example:**
+        `[p]memory Server Rules No spamming, be respectful, and follow Discord ToS`
+        """
+        conf = self.db.get_conf(ctx.guild)
+        if not await self.can_call_llm(conf, ctx):
+            return
+
+        # Validate input
+        if len(title) > 100:
+            return await ctx.send(_("Memory title must be 100 characters or less!"))
+        
+        if len(description) > 4000:
+            return await ctx.send(_("Memory description must be 4000 characters or less!"))
+
+        # Check if memory already exists
+        if title in conf.embeddings:
+            return await ctx.send(_("A memory with the title `{}` already exists! Use a different title or delete the existing one first.").format(title))
+
+        async with ctx.typing():
+            try:
+                # Create the embedding using the existing method
+                embedding = await self.add_embedding(
+                    guild=ctx.guild,
+                    name=title,
+                    text=description,
+                    overwrite=False,
+                    ai_created=False
+                )
+                
+                if embedding:
+                    await ctx.send(_("Memory `{}` has been successfully added! The assistant can now reference this information.").format(title))
+                else:
+                    await ctx.send(_("Failed to create embedding for the memory. Please try again."))
+                    
+            except Exception as e:
+                log.error("Failed to add memory", exc_info=e)
+                await ctx.send(_("An error occurred while adding the memory. Please try again."))
+
     @commands.command(name="query")
     @commands.bot_has_permissions(embed_links=True)
     async def test_embedding_response(self, ctx: commands.Context, *, query: str):
