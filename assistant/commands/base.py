@@ -28,6 +28,7 @@ from ..common.calls import request_image_raw
 from ..common.constants import IMAGE_COSTS, LOADING, READ_EXTENSIONS, TLDR_PROMPT
 from ..common.models import Conversation
 from ..common.utils import can_use, get_attachments
+from ..views import MemoryViewer
 
 log = logging.getLogger("red.vrt.assistant.base")
 _ = Translator("Assistant", __file__)
@@ -742,6 +743,28 @@ If a file has no extension it will still try to read it only if it can be decode
             except Exception as e:
                 log.error("Failed to add memory", exc_info=e)
                 await ctx.send(_("An error occurred while adding the memory. Please try again."))
+
+    @commands.command(name="memories", aliases=["memoryviewer", "mviewer"])
+    @commands.guild_only()
+    @commands.bot_has_permissions(embed_links=True)
+    async def memory_viewer(self, ctx: commands.Context):
+        """
+        Open a beautiful memory viewer with editing capabilities
+        
+        This provides a Discord-native interface to view, edit, create, and delete memories
+        with beautiful embeds, modals, and buttons - no files needed!
+        """
+        conf = self.db.get_conf(ctx.guild)
+        if not await self.can_call_llm(conf, ctx):
+            return
+
+        view = MemoryViewer(
+            ctx=ctx,
+            conf=conf,
+            save_func=self.save_conf,
+            embed_method=self.request_embedding,
+        )
+        await view.start()
 
     @commands.command(name="query")
     @commands.bot_has_permissions(embed_links=True)
