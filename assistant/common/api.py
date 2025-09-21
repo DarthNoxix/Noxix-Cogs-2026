@@ -39,6 +39,25 @@ class API(MixinMeta):
             status = _("Failed to fetch: {}").format(str(e))
         return status
 
+    async def check_openai_version(self) -> str:
+        """Check OpenAI library version and compatibility"""
+        try:
+            import openai
+            version = openai.VERSION
+            log.info(f"OpenAI library version: {version}")
+            
+            # Test if we can import the problematic module
+            try:
+                from openai._types import omit
+                return f"OpenAI {version} - OK"
+            except ImportError as e:
+                log.error(f"OpenAI library import error: {e}")
+                return f"OpenAI {version} - Import Error: {str(e)}"
+                
+        except Exception as e:
+            log.error(f"Failed to check OpenAI version: {e}")
+            return f"Error checking version: {str(e)}"
+
     async def request_response(
         self,
         messages: List[dict],

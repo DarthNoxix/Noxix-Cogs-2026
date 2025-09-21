@@ -51,6 +51,108 @@ class Admin(MixinMeta):
         """
         pass
 
+    @assistant.command(name="openaiinfo")
+    @commands.is_owner()
+    async def openai_info(self, ctx: commands.Context):
+        """Check OpenAI library version and compatibility status"""
+        async with ctx.typing():
+            version_status = await self.check_openai_version()
+            api_status = await self.openai_status()
+            
+            embed = discord.Embed(
+                title=_("OpenAI Library Information"),
+                color=ctx.author.color,
+                description=f"**Version Status:** {version_status}\n**API Status:** {api_status}"
+            )
+            
+            if "Import Error" in version_status:
+                embed.add_field(
+                    name=_("⚠️ Warning"),
+                    value=_(
+                        "There's an import error with the OpenAI library. This usually indicates a version conflict.\n"
+                        "**Solution:** Run `pip install --upgrade openai>=1.99.2` to fix this issue."
+                    ),
+                    inline=False
+                )
+                embed.color = discord.Color.red()
+            elif "OK" in version_status:
+                embed.color = discord.Color.green()
+            
+            await ctx.send(embed=embed)
+
+    @assistant.command(name="diagnose")
+    @commands.is_owner()
+    async def diagnose_openai(self, ctx: commands.Context):
+        """Run comprehensive OpenAI library diagnostics"""
+        async with ctx.typing():
+            issues = []
+            fixes = []
+            
+            # Check basic import
+            try:
+                import openai
+                version = openai.VERSION
+                issues.append(f"✅ OpenAI library imported successfully (v{version})")
+            except ImportError as e:
+                issues.append(f"❌ Failed to import OpenAI: {e}")
+                fixes.append("Run: pip install openai>=1.99.2")
+                await ctx.send(_("**Critical Error:** OpenAI library not installed properly!"))
+                return
+            
+            # Check specific problematic imports
+            try:
+                from openai._types import omit
+                issues.append("✅ _types.omit import successful")
+            except ImportError as e:
+                issues.append(f"❌ _types.omit import failed: {e}")
+                fixes.append("Run: pip install --upgrade openai>=1.99.2")
+            
+            # Check client creation
+            try:
+                client = openai.AsyncOpenAI(api_key="test")
+                issues.append("✅ AsyncOpenAI client creation successful")
+            except Exception as e:
+                issues.append(f"❌ Client creation failed: {e}")
+                fixes.append("Check OpenAI library installation")
+            
+            # Check chat completions access
+            try:
+                # This is where the original error occurs
+                _ = client.chat.completions
+                issues.append("✅ Chat completions access successful")
+            except Exception as e:
+                issues.append(f"❌ Chat completions access failed: {e}")
+                fixes.append("Run: pip uninstall openai && pip install openai>=1.99.2")
+            
+            # Create diagnostic embed
+            embed = discord.Embed(
+                title=_("OpenAI Library Diagnostics"),
+                color=discord.Color.orange() if fixes else discord.Color.green()
+            )
+            
+            embed.add_field(
+                name=_("Test Results"),
+                value="\n".join(issues),
+                inline=False
+            )
+            
+            if fixes:
+                embed.add_field(
+                    name=_("Recommended Fixes"),
+                    value="\n".join(fixes),
+                    inline=False
+                )
+                embed.color = discord.Color.red()
+            else:
+                embed.add_field(
+                    name=_("Status"),
+                    value=_("All tests passed! OpenAI library is working correctly."),
+                    inline=False
+                )
+                embed.color = discord.Color.green()
+            
+            await ctx.send(embed=embed)
+
     @assistant.command(name="view", aliases=["v"])
     @commands.bot_has_permissions(embed_links=True)
     async def view_settings(self, ctx: commands.Context, private: bool = False):

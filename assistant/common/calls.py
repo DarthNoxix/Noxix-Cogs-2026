@@ -101,7 +101,22 @@ async def request_chat_completion_raw(
         level="info",
         data=kwargs,
     )
-    response: ChatCompletion = await client.chat.completions.create(**kwargs)
+    
+    try:
+        response: ChatCompletion = await client.chat.completions.create(**kwargs)
+    except ImportError as e:
+        if "omit" in str(e) or "_types" in str(e):
+            log.error("OpenAI library version conflict detected. Please reinstall the OpenAI library: pip install --upgrade openai>=1.99.2")
+            raise openai.APIError(
+                message="OpenAI library version conflict. Please reinstall: pip install --upgrade openai>=1.99.2",
+                request=None,
+                body={"error": {"message": "Library version conflict", "type": "import_error"}}
+            )
+        else:
+            raise
+    except Exception as e:
+        log.error(f"Unexpected error in OpenAI API call: {e}")
+        raise
 
     log.debug(f"request_chat_completion_raw: {model} -> {response.model}")
     return response
