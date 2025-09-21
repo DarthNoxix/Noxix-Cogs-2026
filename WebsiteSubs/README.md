@@ -4,7 +4,7 @@ A comprehensive Discord bot cog for managing website subscription roles with tie
 
 ## Features
 
-- **Tier-based Role Management**: Support for Basic, Premium, Pro, and Enterprise subscription tiers
+- **Tier-based Role Management**: Support for Noble, Knight, Squire, Levy, and Farmer subscription tiers
 - **Early Access Role**: Automatic early access role assignment for all subscribers
 - **Automatic Expiration**: 30-day automatic role removal with background checking
 - **Subscription Tracking**: Complete database storage of subscription data
@@ -18,8 +18,8 @@ A comprehensive Discord bot cog for managing website subscription roles with tie
 2. Run the setup command: `[p]websitesubs setup`
 
 The setup command will automatically:
-- Create or configure the Early Access role
-- Create tier-specific roles (Basic Subscriber, Premium Subscriber, Pro Subscriber, Enterprise Subscriber)
+- Configure the Early Access role using predefined role ID (1239757904652013578)
+- Configure tier-specific roles using predefined role IDs (Noble, Knight, Squire, Levy, Farmer)
 - Create a notification channel for subscription tracking
 - Set up all necessary permissions
 
@@ -28,25 +28,28 @@ The setup command will automatically:
 ### Core Commands
 
 - `[p]websitesubs setup` - Initial setup of the subscription system
-- `[p]websitesubs give <member> [tier]` - Give subscription roles to a member (default: basic)
+- `[p]websitesubs give <member> [tier]` - Give subscription roles to a member (default: farmer)
 - `[p]websitesubs remove <member>` - Remove subscription roles from a member
 - `[p]websitesubs addcurrent <member> <tier> [date]` - Add a current subscriber with custom date
 - `[p]websitesubs list` - List all active subscriptions
 - `[p]websitesubs check <member>` - Check a member's subscription status
 - `[p]websitesubs config` - Show current configuration
+- `[p]websitesubs setroles <noble> <knight> <squire> <levy> <farmer>` - Manually set role IDs for each tier
+- `[p]websitesubs setearlyaccess <role>` - Manually set the Early Access role
 
 ### Subscription Tiers
 
-- `basic` - Basic tier subscription
-- `premium` - Premium tier subscription  
-- `pro` - Pro tier subscription
-- `enterprise` - Enterprise tier subscription
+- `noble` - Noble tier subscription (highest)
+- `knight` - Knight tier subscription
+- `squire` - Squire tier subscription
+- `levy` - Levy tier subscription
+- `farmer` - Farmer tier subscription (lowest)
 
 ## How It Works
 
 ### Subscription Process
 
-1. **Give Subscription**: Use `[p]websitesubs give @user premium` to give a user subscription roles
+1. **Give Subscription**: Use `[p]websitesubs give @user knight` to give a user subscription roles
 2. **Automatic Tracking**: The system automatically tracks when the subscription was given, by whom, and when it expires
 3. **Notification**: A message is sent to the notification channel with user details and verification buttons
 4. **Verification**: Staff can click "Subscribed" to extend by 30 days or "Unsubscribed" to remove roles
@@ -70,7 +73,7 @@ When a subscription is given, a notification is sent to the configured channel c
 
 ### Manual Management
 
-For existing subscribers, use `[p]websitesubs addcurrent @user premium 2024-01-15` to:
+For existing subscribers, use `[p]websitesubs addcurrent @user knight 2024-01-15` to:
 - Add them with a specific subscription date
 - Set the correct expiration date (30 days from the given date)
 - Send a notification for verification
@@ -78,10 +81,23 @@ For existing subscribers, use `[p]websitesubs addcurrent @user premium 2024-01-1
 ## Configuration
 
 The cog stores the following configuration per guild:
-- Early Access role ID
-- Tier role IDs (basic, premium, pro, enterprise)
+- Early Access role ID - Predefined ID: 1239757904652013578
+- Tier role IDs (noble, knight, squire, levy, farmer) - Predefined IDs:
+  - Noble: 1197718229838200904
+  - Knight: 1197718231025188915
+  - Squire: 1197718392338124903
+  - Levy: 1197718366585106514
+  - Farmer: 1197718231583039588
 - Notification channel ID
 - Subscription database (user ID → subscription data)
+
+### Custom Role IDs
+
+If you need to use different role IDs, you can use these commands:
+```
+[p]websitesubs setearlyaccess @EarlyAccessRole
+[p]websitesubs setroles @NobleRole @KnightRole @SquireRole @LevyRole @FarmerRole
+```
 
 ## Permissions
 

@@ -21,10 +21,11 @@ class WebsiteSubs(commands.Cog):
         default_guild = {
             "early_access_role": None,
             "tier_roles": {
-                "basic": None,
-                "premium": None,
-                "pro": None,
-                "enterprise": None
+                "noble": None,
+                "knight": None,
+                "squire": None,
+                "levy": None,
+                "farmer": None
             },
             "notification_channel": None,
             "subscriptions": {}
@@ -84,7 +85,7 @@ class WebsiteSubs(commands.Cog):
         if early_access_role and early_access_role in member.roles:
             roles_to_remove.append(early_access_role)
             
-        tier = sub_data.get("tier", "basic")
+        tier = sub_data.get("tier", "farmer")
         tier_role_id = tier_roles.get(tier)
         if tier_role_id:
             tier_role = guild.get_role(tier_role_id)
@@ -114,18 +115,35 @@ class WebsiteSubs(commands.Cog):
         """Setup the website subscription system."""
         guild = ctx.guild
         
-        # Setup early access role
-        early_access_role = await self._get_or_create_role(ctx, "Early Access", "Role for website subscribers with early access")
-        await self.config.guild(guild).early_access_role.set(early_access_role.id)
+        # Setup early access role with specific ID
+        early_access_role_id = 1239757904652013578
+        early_access_role = guild.get_role(early_access_role_id)
         
-        # Setup tier roles
-        tier_roles = {}
-        tiers = ["basic", "premium", "pro", "enterprise"]
+        if not early_access_role:
+            await ctx.send(f"❌ Early Access role with ID {early_access_role_id} was not found in this server.")
+            return
         
-        for tier in tiers:
-            role_name = f"{tier.title()} Subscriber"
-            role = await self._get_or_create_role(ctx, role_name, f"Role for {tier} tier subscribers")
-            tier_roles[tier] = role.id
+        await self.config.guild(guild).early_access_role.set(early_access_role_id)
+        
+        # Setup tier roles with specific IDs
+        tier_roles = {
+            "noble": 1197718229838200904,
+            "knight": 1197718231025188915,
+            "squire": 1197718392338124903,
+            "levy": 1197718366585106514,
+            "farmer": 1197718231583039588
+        }
+        
+        # Verify all roles exist
+        missing_roles = []
+        for tier, role_id in tier_roles.items():
+            role = ctx.guild.get_role(role_id)
+            if not role:
+                missing_roles.append(f"{tier.title()} (ID: {role_id})")
+        
+        if missing_roles:
+            await ctx.send(f"❌ The following roles were not found in this server:\n{chr(10).join(missing_roles)}")
+            return
         
         await self.config.guild(guild).tier_roles.set(tier_roles)
         
@@ -163,13 +181,13 @@ class WebsiteSubs(commands.Cog):
         return channel
 
     @websitesubs.command(name="give")
-    async def give_subscription(self, ctx, member: discord.Member, tier: str = "basic"):
+    async def give_subscription(self, ctx, member: discord.Member, tier: str = "farmer"):
         """Give subscription roles to a member.
         
-        Tiers: basic, premium, pro, enterprise
+        Tiers: noble, knight, squire, levy, farmer
         """
         tier = tier.lower()
-        valid_tiers = ["basic", "premium", "pro", "enterprise"]
+        valid_tiers = ["noble", "knight", "squire", "levy", "farmer"]
         
         if tier not in valid_tiers:
             await ctx.send(f"❌ Invalid tier. Valid tiers: {', '.join(valid_tiers)}")
@@ -244,9 +262,10 @@ class WebsiteSubs(commands.Cog):
         """Add a current subscriber with a specific date.
         
         Date format: YYYY-MM-DD (defaults to today if not provided)
+        Tiers: noble, knight, squire, levy, farmer
         """
         tier = tier.lower()
-        valid_tiers = ["basic", "premium", "pro", "enterprise"]
+        valid_tiers = ["noble", "knight", "squire", "levy", "farmer"]
         
         if tier not in valid_tiers:
             await ctx.send(f"❌ Invalid tier. Valid tiers: {', '.join(valid_tiers)}")
@@ -427,6 +446,45 @@ class WebsiteSubs(commands.Cog):
         
         await ctx.send(embed=embed)
 
+    @websitesubs.command(name="setearlyaccess")
+    async def set_early_access_role(self, ctx, role: discord.Role):
+        """Manually set the Early Access role."""
+        await self.config.guild(ctx.guild).early_access_role.set(role.id)
+        
+        embed = discord.Embed(
+            title="✅ Early Access Role Updated",
+            description=f"Successfully set Early Access role to {role.mention}",
+            color=discord.Color.green()
+        )
+        
+        await ctx.send(embed=embed)
+
+    @websitesubs.command(name="setroles")
+    async def set_role_ids(self, ctx, noble: discord.Role, knight: discord.Role, squire: discord.Role, levy: discord.Role, farmer: discord.Role):
+        """Manually set the role IDs for each tier."""
+        tier_roles = {
+            "noble": noble.id,
+            "knight": knight.id,
+            "squire": squire.id,
+            "levy": levy.id,
+            "farmer": farmer.id
+        }
+        
+        await self.config.guild(ctx.guild).tier_roles.set(tier_roles)
+        
+        embed = discord.Embed(
+            title="✅ Role IDs Updated",
+            description="Successfully updated tier role IDs:",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Noble", value=noble.mention, inline=True)
+        embed.add_field(name="Knight", value=knight.mention, inline=True)
+        embed.add_field(name="Squire", value=squire.mention, inline=True)
+        embed.add_field(name="Levy", value=levy.mention, inline=True)
+        embed.add_field(name="Farmer", value=farmer.mention, inline=True)
+        
+        await ctx.send(embed=embed)
+
     @websitesubs.command(name="config")
     async def show_config(self, ctx):
         """Show current configuration."""
@@ -449,7 +507,7 @@ class WebsiteSubs(commands.Cog):
         tier_info = []
         for tier, role_id in tier_roles.items():
             role = guild.get_role(role_id)
-            tier_info.append(f"**{tier.title()}**: {role.mention if role else 'Not set'}")
+            tier_info.append(f"**{tier.title()}**: {role.mention if role else 'Not set'} (ID: {role_id})")
         
         embed.add_field(
             name="Tier Roles",
