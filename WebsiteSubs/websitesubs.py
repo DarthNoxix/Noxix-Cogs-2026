@@ -181,10 +181,11 @@ class WebsiteSubs(commands.Cog):
         return channel
 
     @websitesubs.command(name="give")
-    async def give_subscription(self, ctx, member: discord.Member, tier: str = "farmer"):
+    async def give_subscription(self, ctx, member: discord.Member, tier: str = "farmer", *, website_username: str = None):
         """Give subscription roles to a member.
         
         Tiers: noble, knight, squire, levy, farmer
+        website_username: Their username on your website (optional)
         """
         tier = tier.lower()
         valid_tiers = ["noble", "knight", "squire", "levy", "farmer"]
@@ -216,7 +217,8 @@ class WebsiteSubs(commands.Cog):
             "tier": tier,
             "given_by": ctx.author.id,
             "given_at": datetime.now().isoformat(),
-            "expires_at": expires_at.isoformat()
+            "expires_at": expires_at.isoformat(),
+            "website_username": website_username
         }
         
         subscriptions = await self.config.guild(guild).subscriptions()
@@ -233,6 +235,8 @@ class WebsiteSubs(commands.Cog):
         )
         embed.add_field(name="Expires", value=f"<t:{int(expires_at.timestamp())}:R>", inline=True)
         embed.add_field(name="Given by", value=ctx.author.mention, inline=True)
+        if website_username:
+            embed.add_field(name="Website Username", value=website_username, inline=True)
         
         await ctx.send(embed=embed)
 
@@ -263,6 +267,7 @@ class WebsiteSubs(commands.Cog):
         
         Date format: YYYY-MM-DD (defaults to today if not provided)
         Tiers: noble, knight, squire, levy, farmer
+        You can also include their website username: [p]websitesubs addcurrent @user knight 2024-01-15 username123
         """
         tier = tier.lower()
         valid_tiers = ["noble", "knight", "squire", "levy", "farmer"]
@@ -271,10 +276,20 @@ class WebsiteSubs(commands.Cog):
             await ctx.send(f"❌ Invalid tier. Valid tiers: {', '.join(valid_tiers)}")
             return
         
-        # Parse date
+        # Parse date and website username
+        website_username = None
         if date_str:
+            # Check if the last part is a username (no dashes, not a date)
+            parts = date_str.split()
+            if len(parts) > 1:
+                # Last part might be username
+                potential_username = parts[-1]
+                if not any(char in potential_username for char in ['-', '/']):
+                    website_username = potential_username
+                    date_str = ' '.join(parts[:-1])
+            
             try:
-                given_date = datetime.strptime(date_str, "%Y-%m-%d")
+                given_date = datetime.strptime(date_str.strip(), "%Y-%m-%d")
             except ValueError:
                 await ctx.send("❌ Invalid date format. Use YYYY-MM-DD")
                 return
@@ -304,7 +319,8 @@ class WebsiteSubs(commands.Cog):
             "tier": tier,
             "given_by": ctx.author.id,
             "given_at": given_date.isoformat(),
-            "expires_at": expires_at.isoformat()
+            "expires_at": expires_at.isoformat(),
+            "website_username": website_username
         }
         
         subscriptions = await self.config.guild(guild).subscriptions()
@@ -321,6 +337,8 @@ class WebsiteSubs(commands.Cog):
         )
         embed.add_field(name="Subscription Date", value=given_date.strftime("%Y-%m-%d"), inline=True)
         embed.add_field(name="Expires", value=f"<t:{int(expires_at.timestamp())}:R>", inline=True)
+        if website_username:
+            embed.add_field(name="Website Username", value=website_username, inline=True)
         
         await ctx.send(embed=embed)
 
@@ -350,6 +368,11 @@ class WebsiteSubs(commands.Cog):
         embed.add_field(name="Given at", value=f"<t:{int(given_at.timestamp())}:F>", inline=True)
         embed.add_field(name="Expires", value=f"<t:{int(expires_at.timestamp())}:F>", inline=True)
         embed.add_field(name="Status", value="⏳ Pending Verification", inline=True)
+        
+        # Add website username if provided
+        website_username = sub_data.get("website_username")
+        if website_username:
+            embed.add_field(name="Website Username", value=website_username, inline=True)
         
         view = SubscriptionVerificationView(self, member, sub_data)
         await channel.send(embed=embed, view=view)
@@ -381,6 +404,11 @@ class WebsiteSubs(commands.Cog):
                 f"Given: <t:{int(given_at.timestamp())}:d>\n"
                 f"Expires: <t:{int(expires_at.timestamp())}:R>\n"
             )
+            
+            # Add website username if available
+            website_username = sub_data.get("website_username")
+            if website_username:
+                entry += f"Website: {website_username}\n"
             
             current_page.append(entry)
             
@@ -430,6 +458,11 @@ class WebsiteSubs(commands.Cog):
         embed.add_field(name="Given at", value=f"<t:{int(given_at.timestamp())}:F>", inline=True)
         embed.add_field(name="Expires", value=f"<t:{int(expires_at.timestamp())}:F>", inline=True)
         embed.add_field(name="Time Remaining", value=f"<t:{int(expires_at.timestamp())}:R>", inline=True)
+        
+        # Add website username if available
+        website_username = sub_data.get("website_username")
+        if website_username:
+            embed.add_field(name="Website Username", value=website_username, inline=True)
         
         # Check current roles
         early_access_role = guild.get_role(await self.config.guild(guild).early_access_role())

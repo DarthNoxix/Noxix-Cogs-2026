@@ -28,9 +28,9 @@ The setup command will automatically:
 ### Core Commands
 
 - `[p]websitesubs setup` - Initial setup of the subscription system
-- `[p]websitesubs give <member> [tier]` - Give subscription roles to a member (default: farmer)
+- `[p]websitesubs give <member> [tier] [website_username]` - Give subscription roles to a member (default: farmer)
 - `[p]websitesubs remove <member>` - Remove subscription roles from a member
-- `[p]websitesubs addcurrent <member> <tier> [date]` - Add a current subscriber with custom date
+- `[p]websitesubs addcurrent <member> <tier> [date] [website_username]` - Add a current subscriber with custom date
 - `[p]websitesubs list` - List all active subscriptions
 - `[p]websitesubs check <member>` - Check a member's subscription status
 - `[p]websitesubs config` - Show current configuration
@@ -45,11 +45,31 @@ The setup command will automatically:
 - `levy` - Levy tier subscription
 - `farmer` - Farmer tier subscription (lowest)
 
+### Website Username Tracking
+
+You can optionally include a website username when giving subscriptions to help verify if users are actually subscribed on your website:
+
+```bash
+# Give subscription with website username
+[p]websitesubs give @user knight username123
+
+# Add current subscriber with website username
+[p]websitesubs addcurrent @user squire 2024-01-15 username123
+```
+
+The website username will be displayed in:
+- Command confirmation messages
+- Notification channel messages
+- Subscription lists
+- Individual subscription checks
+
+This helps you verify if users are actually subscribed on your website when reviewing the notifications.
+
 ## How It Works
 
 ### Subscription Process
 
-1. **Give Subscription**: Use `[p]websitesubs give @user knight` to give a user subscription roles
+1. **Give Subscription**: Use `[p]websitesubs give @user knight username123` to give a user subscription roles with their website username
 2. **Automatic Tracking**: The system automatically tracks when the subscription was given, by whom, and when it expires
 3. **Notification**: A message is sent to the notification channel with user details and verification buttons
 4. **Verification**: Staff can click "Subscribed" to extend by 30 days or "Unsubscribed" to remove roles
@@ -69,11 +89,12 @@ When a subscription is given, a notification is sent to the configured channel c
 - Who gave the subscription
 - When it was given
 - When it expires
+- Website username (if provided)
 - Interactive buttons for verification
 
 ### Manual Management
 
-For existing subscribers, use `[p]websitesubs addcurrent @user knight 2024-01-15` to:
+For existing subscribers, use `[p]websitesubs addcurrent @user knight 2024-01-15 username123` to:
 - Add them with a specific subscription date
 - Set the correct expiration date (30 days from the given date)
 - Send a notification for verification
