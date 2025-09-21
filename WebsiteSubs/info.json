@@ -1,0 +1,11 @@
+{
+    "author": ["Noxix"],
+    "install_msg": "Website subscription management cog loaded! Use `[p]websitesubs` to get started.",
+    "name": "WebsiteSubs",
+    "short": "Manage website subscription roles with tier-based access and automatic expiration.",
+    "description": "A comprehensive cog for managing website subscription roles including early access, tier-based roles, automatic 30-day expiration, and subscription tracking with manual management capabilities.",
+    "tags": ["subscription", "roles", "website", "premium", "management"],
+    "requirements": ["redbot.core"],
+    "version": "1.0.0",
+    "end_user_data_statement": "This cog stores user subscription data including subscription dates, tiers, and expiration information."
+}
