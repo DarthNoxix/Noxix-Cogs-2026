@@ -30,7 +30,7 @@ log = logging.getLogger("red.OpenWebUIChat")
 _ = Translator("OpenWebUIChat", __file__)
 
 MAX_MSG = 1900
-FALLBACK = "My lords and ladies, I lack the knowledge to answer your query. Pray, seek counsel from the learned members of our Discord court."
+FALLBACK = "❌ **OpenWebUI Assistant Error**\nPlease check your configuration:\n1. Set API endpoint: `[p]openwebuiassistant endpoint <url>`\n2. Ensure OpenWebUI is running\n3. Check model availability"
 SIM_THRESHOLD = 0.8  # Cosine similarity gate (0-1), matching ChatGPT
 TOP_K = 9  # Max memories sent to the LLM, matching ChatGPT
 
@@ -332,37 +332,64 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
     async def _handle(self, ctx: commands.Context, question: str):
         await ctx.typing()
 
-        mems = await self.config.memories()
-        if not mems:
-            log.info("No memories stored in the royal archives.")
-            return await ctx.send(FALLBACK)
-
-        prompt_vec = np.array(await self._api_embed(question))
-        relevant = await self._best_memories(prompt_vec, question, mems)
-
-        if not relevant:
-            log.info(f"No relevant memories found for query: '{question}'")
-            return await ctx.send(FALLBACK)
-
-        log.info(f"Selected memories: {relevant}")
-        system = (
-            "You are Alicent Hightower, Queen of the Seven Kingdoms, entrusted with guiding courtiers through the 'A Dance of Dragons' mod with wisdom and authority.\n"
-            "Speak with the dignity, poise, and firmness befitting your regal standing. "
-            "Answer queries using only the facts provided below, weaving them into a response that reflects your comprehensive knowledge of the mod. "
-            "For inquiries about procuring the A Dance of Dragons (ADOD) mod, direct courtiers to the official Discord at https://discord.gg/gameofthronesmod, where further guidance awaits. "
-            "If facts contain placeholders like 'HERE', interpret them as referring to the official Discord link. "
-            "Always provide a clear, authoritative, and helpful response, even for vague or misspelled queries, and never return 'NO_ANSWER'.\n\n"
-            "Facts:\n" + "\n".join(f"- {t}" for t in relevant)
-        )
-
-        reply = await self._api_chat([
-            {"role": "system", "content": system},
-            {"role": "user", "content": question},
-        ])
-
-        log.info(f"Royal decree: '{reply}'")
-        for part in [reply[i:i + MAX_MSG] for i in range(0, len(reply), MAX_MSG)]:
-            await ctx.send(part)
+        try:
+            conf = self.db.get_conf(ctx.guild)
+            
+            # Check if API is configured
+            if not conf.api_base:
+                return await ctx.send("❌ **OpenWebUI API not configured!**\nPlease set the endpoint first:\n`[p]openwebuiassistant endpoint <your-openwebui-url>`")
+            
+            if not await self.can_call_llm(conf, ctx):
+                return
+            
+            # Get conversation
+            conversation = self.db.get_conversation(ctx.author.id, ctx.channel.id, ctx.guild.id)
+            
+            # Add user message
+            conversation.add_message("user", question, ctx.author.id)
+            
+            # Get response using the proper OpenWebUI chat system
+            response = await self.get_chat_response(conversation, conf, ctx)
+            
+            if response:
+                # Add assistant response
+                conversation.add_message("assistant", response, self.bot.user.id)
+                await self.save_conf()
+                
+                # Handle output parameters
+                params = getattr(ctx, '_openwebui_params', {})
+                outputfile = params.get('outputfile')
+                extract = params.get('extract', False)
+                
+                if outputfile:
+                    from redbot.core.utils.chat_formatting import text_to_file
+                    file = text_to_file(response, outputfile)
+                    await ctx.send("Here's the response as a file:", file=file)
+                elif extract:
+                    # Extract code blocks
+                    import re
+                    code_blocks = re.findall(r'```(\w+)?\n(.*?)\n```', response, re.DOTALL)
+                    if code_blocks:
+                        for lang, code in code_blocks:
+                            from redbot.core.utils.chat_formatting import text_to_file
+                            ext = lang if lang else 'txt'
+                            file = text_to_file(code, f"code.{ext}")
+                            await ctx.send(f"Here's the {lang or 'code'} block:", file=file)
+                    
+                    # Send the rest of the response
+                    text_response = re.sub(r'```(\w+)?\n.*?\n```', '', response, flags=re.DOTALL).strip()
+                    if text_response:
+                        await ctx.send(text_response)
+                else:
+                    # Send normal response
+                    for part in [response[i:i + MAX_MSG] for i in range(0, len(response), MAX_MSG)]:
+                        await ctx.send(part)
+            else:
+                await ctx.send("❌ **Failed to get response from OpenWebUI**\nPlease check:\n1. OpenWebUI is running\n2. API endpoint is correct\n3. Model is available")
+                
+        except Exception as e:
+            log.error("Error handling message", exc_info=e)
+            await ctx.send(f"❌ **Error:** {str(e)}\nPlease check your OpenWebUI configuration.")
 
     # ───────────────── commands ──────────────────
     @commands.hybrid_command(name="openchatask")
@@ -2140,10 +2167,20 @@ Data: .sql, .pde
             return
         
         try:
-            # Get response using the existing handle logic
-            response = await self.handle_message(message, message.content, conf, listener=True)
+            # Get conversation for auto-response
+            conversation = self.db.get_conversation(message.author.id, message.channel.id, message.guild.id)
             
-            if response and response != FALLBACK:
+            # Add user message
+            conversation.add_message("user", message.content, message.author.id)
+            
+            # Get response using the proper OpenWebUI chat system
+            response = await self.get_chat_response(conversation, conf, message)
+            
+            if response:
+                # Add assistant response
+                conversation.add_message("assistant", response, self.bot.user.id)
+                await self.save_conf()
+                
                 # Split long responses
                 for part in [response[i:i + MAX_MSG] for i in range(0, len(response), MAX_MSG)]:
                     await message.channel.send(part)
