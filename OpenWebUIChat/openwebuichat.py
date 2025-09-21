@@ -83,6 +83,7 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
     async def cog_load(self):
         asyncio.create_task(self.init_cog())
         self.worker = asyncio.create_task(self._worker())
+        await self._setup_autocomplete()
         log.info("OpenWebUIMemoryBot, in service to Queen Alicent, is ready.")
 
     async def cog_unload(self):
@@ -364,27 +365,67 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
             await ctx.send(part)
 
     # ───────────────── commands ──────────────────
-    @commands.hybrid_command()
-    async def openwebuichat(self, ctx: commands.Context, *, message: str):
+    @commands.hybrid_command(name="chat")
+    @discord.app_commands.describe(
+        message="Your message to the OpenWebUI assistant",
+        outputfile="Optional: Save response as a file (filename with extension)",
+        extract="Optional: Extract code blocks from the response",
+        last="Optional: Resend the last message from the conversation"
+    )
+    async def openwebuichat(
+        self, 
+        ctx: commands.Context, 
+        *, 
+        message: str,
+        outputfile: Optional[str] = None,
+        extract: bool = False,
+        last: bool = False
+    ):
         """
         Chat with the OpenWebUI assistant!
         
         **Optional Arguments:**
-        `--outputfile <filename>` - uploads a file with the reply instead (no spaces)
-        `--extract` - extracts code blocks from the reply
-        `--last` - resends the last message of the conversation
+        `outputfile` - Save response as a file (filename with extension)
+        `extract` - Extract code blocks from the response
+        `last` - Resend the last message from the conversation
         
-        **Example:**
-        `[p]openwebuichat write a python script that prints "Hello World!"`
-        - Including `--outputfile hello.py` will output a file containing the whole response.
-        - Including `--outputfile hello.py --extract` will output a file containing just the code blocks and send the rest as text.
-        - Including `--extract` will send the code separately from the reply
+        **Examples:**
+        `/chat message: "Write a Python script" outputfile: "script.py"`
+        `/chat message: "Explain this code" extract: true`
+        `/chat message: "Continue" last: true`
         """
         if ctx.interaction:
             await ctx.interaction.response.defer()
+        
+        # Handle the last parameter
+        if last:
+            conversation = self.db.get_conversation(ctx.author.id, ctx.channel.id, ctx.guild.id)
+            if not conversation.messages:
+                return await ctx.send("No previous messages in this conversation!")
+            
+            # Get the last assistant message
+            for msg in reversed(conversation.messages):
+                if msg.get("role") == "assistant":
+                    last_message = msg.get("content", "")
+                    if outputfile:
+                        from redbot.core.utils.chat_formatting import text_to_file
+                        file = text_to_file(last_message, outputfile)
+                        await ctx.send("Here's the last message as a file:", file=file)
+                    else:
+                        await ctx.send(last_message)
+                    return
+            
+            return await ctx.send("No previous assistant messages found!")
+        
+        # Store the parameters for the message handler
+        ctx._openwebui_params = {
+            'outputfile': outputfile,
+            'extract': extract
+        }
+        
         await self.q.put((ctx, message))
 
-    @commands.command(name="openwebuichathelp")
+    @commands.hybrid_command(name="help")
     async def openwebui_chat_help(self, ctx: commands.Context):
         """Get help using the OpenWebUI assistant"""
         txt = (
@@ -427,6 +468,90 @@ If a file has no extension it will still try to read it only if it can be decode
         )
         embed = discord.Embed(description=txt.strip(), color=ctx.me.color)
         await ctx.send(embed=embed)
+
+    # ───────────────── Autocomplete Methods ─────────────────
+    
+    async def model_autocomplete(self, interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+        """Autocomplete for model selection"""
+        try:
+            conf = self.db.get_conf(interaction.guild)
+            if not conf.api_base:
+                return []
+            
+            # Get available models from OpenWebUI
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{conf.api_base}/api/v1/models", timeout=10.0)
+                if response.status_code == 200:
+                    models_data = response.json()
+                    models = []
+                    
+                    # Extract model names from different possible response formats
+                    if isinstance(models_data, dict) and "data" in models_data:
+                        models = [model.get("id", model.get("name", "")) for model in models_data["data"]]
+                    elif isinstance(models_data, list):
+                        models = [model.get("id", model.get("name", "")) for model in models_data]
+                    
+                    # Filter and format choices
+                    choices = []
+                    for model in models:
+                        if model and current.lower() in model.lower():
+                            choices.append(discord.app_commands.Choice(name=model, value=model))
+                    
+                    return choices[:25]  # Discord limit
+        except Exception as e:
+            log.error("Failed to get models for autocomplete", exc_info=e)
+        
+        return []
+    
+    async def memory_autocomplete(self, interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+        """Autocomplete for memory names"""
+        try:
+            conf = self.db.get_conf(interaction.guild)
+            memories = list(conf.embeddings.keys())
+            
+            choices = []
+            for memory in memories:
+                if current.lower() in memory.lower():
+                    choices.append(discord.app_commands.Choice(name=memory, value=memory))
+            
+            return choices[:25]  # Discord limit
+        except Exception:
+            return []
+    
+    async def channel_autocomplete(self, interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+        """Autocomplete for channel selection"""
+        try:
+            if not interaction.guild:
+                return []
+            
+            choices = []
+            for channel in interaction.guild.text_channels:
+                if current.lower() in channel.name.lower():
+                    choices.append(discord.app_commands.Choice(name=f"#{channel.name}", value=str(channel.id)))
+            
+            return choices[:25]  # Discord limit
+        except Exception:
+            return []
+    
+    async def user_autocomplete(self, interaction: discord.Interaction, current: str) -> List[discord.app_commands.Choice[str]]:
+        """Autocomplete for user selection"""
+        try:
+            if not interaction.guild:
+                return []
+            
+            choices = []
+            for member in interaction.guild.members:
+                if current.lower() in member.display_name.lower() or current.lower() in member.name.lower():
+                    choices.append(discord.app_commands.Choice(name=member.display_name, value=str(member.id)))
+            
+            return choices[:25]  # Discord limit
+        except Exception:
+            return []
+    
+    async def _setup_autocomplete(self):
+        """Set up autocomplete for commands"""
+        # This will be called after the cog is loaded to set up autocomplete
+        pass
 
     # ───────────────── setup & memory management ─────────────────
     @commands.group(name="setopenwebui")
@@ -490,8 +615,12 @@ If a file has no extension it will still try to read it only if it can be decode
         await self.config.memories.set(mems)
         await ctx.send("❌ Memory removed from the royal archives.")
 
-    @commands.command(name="openwebuiaddmemory")
+    @commands.hybrid_command(name="addmemory")
     @commands.guild_only()
+    @discord.app_commands.describe(
+        title="The title/name for this memory (max 100 characters)",
+        description="The content/description of this memory (max 4000 characters)"
+    )
     async def add_memory(self, ctx: commands.Context, title: str, *, description: str):
         """Add a memory/embedding to the assistant"""
         conf = self.db.get_conf(ctx.guild)
@@ -529,7 +658,7 @@ If a file has no extension it will still try to read it only if it can be decode
                 log.error("Failed to add memory", exc_info=e)
                 await ctx.send("An error occurred while adding the memory. Please try again.")
 
-    @commands.command(name="openwebuimemories", aliases=["openwebuimemoryviewer", "openwebuimviewer"])
+    @commands.hybrid_command(name="memories")
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
     async def memory_viewer(self, ctx: commands.Context):
@@ -546,8 +675,9 @@ If a file has no extension it will still try to read it only if it can be decode
         )
         await view.start()
 
-    @commands.command(name="openwebuiquery")
+    @commands.hybrid_command(name="query")
     @commands.bot_has_permissions(embed_links=True)
+    @discord.app_commands.describe(query="Search query to find related memories")
     async def test_embedding_response(self, ctx: commands.Context, *, query: str):
         """Fetch related embeddings according to the current topn setting along with their scores"""
         conf = self.db.get_conf(ctx.guild)
@@ -619,6 +749,7 @@ If a file has no extension it will still try to read it only if it can be decode
         await ctx.send(embed=embed)
 
     @openwebuiassistant.command()
+    @discord.app_commands.describe(model="The chat model to use")
     async def model(self, ctx, model: str):
         """Set the chat model for this server."""
         if model not in MODELS:
@@ -631,6 +762,7 @@ If a file has no extension it will still try to read it only if it can be decode
         await ctx.send(f"✅ Chat model set to `{model}`")
 
     @openwebuiassistant.command()
+    @discord.app_commands.describe(model="The embedding model to use")
     async def embedmodel(self, ctx, model: str):
         """Set the embedding model for this server."""
         if model not in EMBEDDING_MODELS:
@@ -954,6 +1086,7 @@ If a file has no extension it will still try to read it only if it can be decode
         await ctx.send(f"✅ Persistent conversations {status}")
 
     @openwebuiassistant.command()
+    @discord.app_commands.describe(target="User or role to add/remove as tutor")
     async def tutor(self, ctx, target: Union[discord.Member, discord.Role] = None):
         """Add/remove a user or role from tutors. Use without target to list."""
         conf = self.db.get_conf(ctx.guild)
@@ -1126,6 +1259,7 @@ If a file has no extension it will still try to read it only if it can be decode
         await ctx.send(f"✅ Assistant {status}")
 
     @openwebuiassistant.command()
+    @discord.app_commands.describe(channel="The channel for auto-responses")
     async def channel(self, ctx, channel: discord.TextChannel = None):
         """Set the main auto-response channel"""
         conf = self.db.get_conf(ctx.guild)
@@ -1607,7 +1741,7 @@ Data: .sql, .pde
         
         await ctx.send(embed=embed)
 
-    @commands.command(name="openwebuiconvostats")
+    @commands.hybrid_command(name="convostats")
     async def openwebuiconvostats(self, ctx):
         """View your conversation statistics for this channel."""
         conf = self.db.get_conf(ctx.guild)
@@ -1662,7 +1796,7 @@ Data: .sql, .pde
         embed = await view.get_embed()
         await ctx.send(embed=embed, view=view)
 
-    @commands.command(name="openwebuiclearconvo")
+    @commands.hybrid_command(name="clearconvo")
     async def openwebuiclearconvo(self, ctx):
         """Clear your conversation with the OpenWebUI assistant in this channel."""
         conversation = self.db.get_conversation(ctx.author.id, ctx.channel.id, ctx.guild.id)
@@ -1670,7 +1804,7 @@ Data: .sql, .pde
         await self.save_conf()
         await ctx.send("✅ Your conversation with the OpenWebUI assistant has been cleared.")
 
-    @commands.command(name="openwebuishowconvo")
+    @commands.hybrid_command(name="showconvo")
     async def openwebuishowconvo(self, ctx):
         """Show your current conversation with the OpenWebUI assistant."""
         conversation = self.db.get_conversation(ctx.author.id, ctx.channel.id, ctx.guild.id)
@@ -1782,8 +1916,12 @@ Data: .sql, .pde
         await ctx.send("Conversation has been imported successfully!")
         await self.save_conf()
 
-    @commands.command(name="openwebuitldr")
+    @commands.hybrid_command(name="tldr")
     @commands.guild_only()
+    @discord.app_commands.describe(
+        timeframe="Time period to summarize (e.g., 1h, 2d, 30m)",
+        question="Optional question to focus the summary on"
+    )
     async def summarize_convo(
         self,
         ctx: commands.Context,
