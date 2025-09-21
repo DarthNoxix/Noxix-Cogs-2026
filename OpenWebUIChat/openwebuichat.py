@@ -20,13 +20,13 @@ log = logging.getLogger("red.OpenWebUIChat")
 _ = Translator("OpenWebUIChat", __file__)
 
 MAX_MSG = 1900
-FALLBACK = "My lords and ladies, I lack the knowledge to answer your query. Pray, seek counsel from the learned members of our Discord court."
+FALLBACK = "I'm here to help! How can I assist you today?"
 SIM_THRESHOLD = 0.8  # Cosine similarity gate (0-1), matching ChatGPT
 TOP_K = 9  # Max memories sent to the LLM, matching ChatGPT
 
 @cog_i18n(_)
 class OpenWebUIMemoryBot(commands.Cog):
-    """A regal assistant, in the likeness of Queen Alicent Hightower, guiding courtiers through the 'A Dance of Dragons' mod with wisdom and authority."""
+    """An AI assistant that can chat and help with various topics, with optional memory/knowledge base functionality."""
 
     def __init__(self, bot: Red):
         self.bot = bot
@@ -44,7 +44,7 @@ class OpenWebUIMemoryBot(commands.Cog):
     # ───────────────── lifecycle ─────────────────
     async def cog_load(self):
         self.worker = asyncio.create_task(self._worker())
-        log.info("OpenWebUIMemoryBot, in service to Queen Alicent, is ready.")
+        log.info("OpenWebUIMemoryBot is ready and ready to assist.")
 
     async def cog_unload(self):
         if self.worker:
@@ -62,7 +62,7 @@ class OpenWebUIMemoryBot(commands.Cog):
     async def _api_chat(self, messages: list) -> str:
         base, key, chat_model, _ = await self._get_keys()
         if not base or not key:
-            raise RuntimeError("OpenWebUI URL or key not set, as befits a royal court.")
+            raise RuntimeError("OpenWebUI URL or key not set.")
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         async with httpx.AsyncClient(timeout=60) as c:
             r = await c.post(f"{base.rstrip('/')}/chat/completions",
@@ -74,7 +74,7 @@ class OpenWebUIMemoryBot(commands.Cog):
     async def _api_embed(self, text: str) -> List[float]:
         base, key, _, embed_model = await self._get_keys()
         if not base or not key:
-            raise RuntimeError("OpenWebUI URL or key not set, as befits a royal court.")
+            raise RuntimeError("OpenWebUI URL or key not set.")
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         ollama_base = base.replace('/api', '/ollama')
         async with httpx.AsyncClient(timeout=60) as c:
@@ -96,11 +96,8 @@ class OpenWebUIMemoryBot(commands.Cog):
         text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
         text = re.sub(r'\bdo\s+i\b|\bcan\s+i\b|\bhow\s+to\b|\bhow\s+do\s+i\b', 'can i', text)
         text = re.sub(r'\bi\s+download\b|\bi\s+get\b', 'i download', text)
-        text = re.sub(r'\badod\b|\ba\s+dance\s+of\s+dragons\b|\badod\s+mod\b|\badod\s+mdo\b', 'ADOD', text)
-        text = re.sub(r'\bdownload\s+the\s+ADOD\s+mod\b|\bget\s+the\s+ADOD\s+mod\b', 'download ADOD mod', text)
         text = re.sub(r'\bwher\b|\bwhere\b', 'where', text)
         text = re.sub(r'\bdownlod\b|\bdl\b', 'download', text)
-        text = re.sub(r'\bmod\b|\bmdo\b', 'ADOD mod', text)
         return text.strip()
 
     # ───────────────── memory utils ──────────────
@@ -148,7 +145,7 @@ class OpenWebUIMemoryBot(commands.Cog):
     async def _add_memory(self, name: str, text: str):
         mems = await self.config.memories()
         if name in mems:
-            raise ValueError("A memory with that name already exists in the royal archives.")
+            raise ValueError("A memory with that name already exists.")
         vec = await self._api_embed(text)
         mems[name] = {"text": text, "vec": vec}
         await self.config.memories.set(mems)
@@ -169,41 +166,43 @@ class OpenWebUIMemoryBot(commands.Cog):
         await ctx.typing()
 
         mems = await self.config.memories()
-        if not mems:
-            log.info("No memories stored in the royal archives.")
-            return await ctx.send(FALLBACK)
-
-        prompt_vec = np.array(await self._api_embed(question))
-        relevant = await self._best_memories(prompt_vec, question, mems)
-
-        if not relevant:
-            log.info(f"No relevant memories found for query: '{question}'")
-            return await ctx.send(FALLBACK)
-
-        log.info(f"Selected memories: {relevant}")
+        
+        # Start with a general system prompt
         system = (
-            "You are Alicent Hightower, Queen of the Seven Kingdoms, entrusted with guiding courtiers through the 'A Dance of Dragons' mod with wisdom and authority.\n"
-            "Speak with the dignity, poise, and firmness befitting your regal standing. "
-            "Answer queries using only the facts provided below, weaving them into a response that reflects your comprehensive knowledge of the mod. "
-            "For inquiries about procuring the A Dance of Dragons (ADOD) mod, direct courtiers to the official Discord at https://discord.gg/gameofthronesmod, where further guidance awaits. "
-            "If facts contain placeholders like 'HERE', interpret them as referring to the official Discord link. "
-            "Always provide a clear, authoritative, and helpful response, even for vague or misspelled queries, and never return 'NO_ANSWER'.\n\n"
-            "Facts:\n" + "\n".join(f"- {t}" for t in relevant)
+            "You are a helpful AI assistant. You can engage in general conversation, answer questions, "
+            "provide information, and help with various topics. Be friendly, informative, and helpful. "
+            "If you don't know something, say so honestly and offer to help in other ways."
         )
+        
+        # If we have memories, try to find relevant ones and enhance the system prompt
+        if mems:
+            try:
+                prompt_vec = np.array(await self._api_embed(question))
+                relevant = await self._best_memories(prompt_vec, question, mems)
+                
+                if relevant:
+                    log.info(f"Selected memories: {relevant}")
+                    system += (
+                        "\n\nYou also have access to some specific knowledge that might be relevant:\n"
+                        + "\n".join(f"- {t}" for t in relevant)
+                    )
+            except Exception as e:
+                log.warning(f"Failed to retrieve memories: {e}")
+                # Continue with general chat even if memory retrieval fails
 
         reply = await self._api_chat([
             {"role": "system", "content": system},
             {"role": "user", "content": question},
         ])
 
-        log.info(f"Royal decree: '{reply}'")
+        log.info(f"AI response: '{reply}'")
         for part in [reply[i:i + MAX_MSG] for i in range(0, len(reply), MAX_MSG)]:
             await ctx.send(part)
 
     # ───────────────── commands ──────────────────
     @commands.hybrid_command()
     async def llmchat(self, ctx: commands.Context, *, message: str):
-        """Seek the wisdom of Queen Alicent Hightower regarding the A Dance of Dragons mod."""
+        """Chat with the AI assistant."""
         if ctx.interaction:
             await ctx.interaction.response.defer()
         await self.q.put((ctx, message))
@@ -212,52 +211,52 @@ class OpenWebUIMemoryBot(commands.Cog):
     @commands.group()
     @commands.is_owner()
     async def setopenwebui(self, ctx):
-        """Configure the royal connection to the OpenWebUI archives."""
+        """Configure the connection to OpenWebUI."""
         if ctx.invoked_subcommand is None:
             await ctx.send_help()
 
     @setopenwebui.command()
     async def url(self, ctx, url: str):
         await self.config.api_base.set(url)
-        await ctx.send("✅ Royal URL decreed.")
+        await ctx.send("✅ URL set.")
 
     @setopenwebui.command()
     async def key(self, ctx, key: str):
         await self.config.api_key.set(key)
-        await ctx.send("✅ Royal key secured.")
+        await ctx.send("✅ Key set.")
 
     @setopenwebui.command()
     async def chatmodel(self, ctx, model: str):
         await self.config.chat_model.set(model)
-        await ctx.send(f"✅ Chat model decreed as {model}.")
+        await ctx.send(f"✅ Chat model set to {model}.")
 
     @setopenwebui.command()
     async def embedmodel(self, ctx, model: str):
         await self.config.embed_model.set(model)
-        await ctx.send(f"✅ Embed model decreed as {model}.")
+        await ctx.send(f"✅ Embed model set to {model}.")
 
     @commands.group(name="openwebuimemory")
     @commands.is_owner()
     async def openwebuimemory(self, ctx):
-        """Manage the royal archives of the A Dance of Dragons mod."""
+        """Manage the knowledge base/memories."""
         if ctx.invoked_subcommand is None:
             await ctx.send_help()
 
     @openwebuimemory.command()
     async def add(self, ctx, name: str, *, text: str):
-        """Add a memory to the royal archives."""
+        """Add a memory to the knowledge base."""
         try:
             await self._add_memory(name, text)
         except ValueError as e:
             await ctx.send(str(e))
         else:
-            await ctx.send("✅ Memory enshrined in the royal archives.")
+            await ctx.send("✅ Memory added to knowledge base.")
 
     @openwebuimemory.command(name="list")
     async def _list(self, ctx):
         mems = await self.config.memories()
         if not mems:
-            return await ctx.send("*The royal archives are empty.*")
+            return await ctx.send("*The knowledge base is empty.*")
         out = "\n".join(f"- **{n}**: {d['text'][:80]}…" for n, d in mems.items())
         await ctx.send(out)
 
@@ -265,10 +264,10 @@ class OpenWebUIMemoryBot(commands.Cog):
     async def _del(self, ctx, name: str):
         mems = await self.config.memories()
         if name not in mems:
-            return await ctx.send("No such memory exists in the royal archives.")
+            return await ctx.send("No such memory exists in the knowledge base.")
         del mems[name]
         await self.config.memories.set(mems)
-        await ctx.send("❌ Memory removed from the royal archives.")
+        await ctx.send("❌ Memory removed from the knowledge base.")
 
 
 async def setup(bot: Red):
