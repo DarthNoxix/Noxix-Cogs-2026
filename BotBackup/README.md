@@ -15,10 +15,11 @@ A comprehensive backup and restore system for Red bot configurations. This cog a
 
 ### Core Commands
 
-- `[p]backup create [name]` - Create a complete backup of all configurations
+- `[p]backup create [name] [skip_cogs] [overwrite]` - Create a complete backup of all configurations
 - `[p]backup restore <name> <confirm>` - Restore configurations from a backup
 - `[p]backup list` - List all available backup files
 - `[p]backup info <name>` - Get detailed information about a backup
+- `[p]backup cogs` - List all available cogs that can be backed up or skipped
 
 ### Upload/Download Commands
 
@@ -44,7 +45,14 @@ A comprehensive backup and restore system for Red bot configurations. This cog a
 ```
 [p]backup create
 [p]backup create my_migration_backup
+[p]backup create my_backup Assistant,Calculator True
+[p]backup create my_backup Assistant True
 ```
+
+**Parameters:**
+- `name`: Custom name for the backup (optional)
+- `skip_cogs`: Comma-separated list of cogs to skip (optional)
+- `overwrite`: Set to `True` to overwrite existing backup with same name (optional)
 
 ### Restoring a Backup
 
@@ -57,6 +65,7 @@ A comprehensive backup and restore system for Red bot configurations. This cog a
 ```
 [p]backup list
 [p]backup info my_migration_backup
+[p]backup cogs
 ```
 
 ### Uploading/Downloading Backups
@@ -108,7 +117,9 @@ Backup files are stored as JSON and contain:
 ## Migration Process
 
 ### Method 1: Direct Upload/Download (Recommended)
-1. **On Source Bot**: Run `[p]backup create migration_backup`
+1. **On Source Bot**: 
+   - Run `[p]backup create migration_backup` (full backup)
+   - Or `[p]backup create migration_backup Assistant True` (skip Assistant cog)
 2. **Download Backup**: Run `[p]backup download migration_backup` and save the file(s)
    - For large backups (>7MB), multiple part files will be created
 3. **On Target Bot**: 

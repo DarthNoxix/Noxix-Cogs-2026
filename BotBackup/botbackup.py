@@ -49,16 +49,26 @@ class BotBackup(commands.Cog):
         backup_location = await self.config.backup_location()
         return cog_data_path(self) / backup_location
 
-    async def _get_all_cog_configs(self) -> Dict[str, Dict]:
+    async def _get_all_cog_configs(self, skip_cogs: List[str] = None) -> Dict[str, Dict]:
         """
         Retrieve all configurations from all loaded cogs.
+        
+        Args:
+            skip_cogs: List of cog names to skip during backup
         
         Returns:
             Dict containing all cog configurations organized by cog name
         """
+        if skip_cogs is None:
+            skip_cogs = []
+        
         all_configs = {}
         
         for cog_name, cog in self.bot.cogs.items():
+            if cog_name in skip_cogs:
+                log.info(f"Skipping cog '{cog_name}' as requested")
+                continue
+                
             if not hasattr(cog, 'config') or not isinstance(cog.config, Config):
                 continue
                 
@@ -152,13 +162,17 @@ class BotBackup(commands.Cog):
     async def backup_create(
         self, 
         ctx: commands.Context, 
-        name: Optional[str] = None
+        name: Optional[str] = None,
+        skip_cogs: Optional[str] = None,
+        overwrite: bool = False
     ):
         """
         Create a complete backup of all bot configurations.
         
         Args:
             name: Optional custom name for the backup file
+            skip_cogs: Comma-separated list of cog names to skip (e.g., "Assistant,Calculator")
+            overwrite: Whether to overwrite an existing backup with the same name
         """
         if not name:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -171,8 +185,25 @@ class BotBackup(commands.Cog):
         backup_path = await self._get_backup_path()
         backup_file = backup_path / f"{safe_name}.json"
         
-        if backup_file.exists():
-            return await ctx.send(f"❌ A backup with the name `{safe_name}` already exists!")
+        if backup_file.exists() and not overwrite:
+            return await ctx.send(
+                f"❌ A backup with the name `{safe_name}` already exists!\n"
+                f"Use `{ctx.prefix}backup create {safe_name} {skip_cogs or ''} True` to overwrite it."
+            )
+        
+        # Parse skip_cogs
+        skip_list = []
+        if skip_cogs:
+            skip_list = [cog.strip() for cog in skip_cogs.split(',') if cog.strip()]
+            # Validate that the cogs exist
+            valid_cogs = [cog for cog in skip_list if cog in self.bot.cogs]
+            invalid_cogs = [cog for cog in skip_list if cog not in self.bot.cogs]
+            
+            if invalid_cogs:
+                return await ctx.send(
+                    f"❌ The following cogs don't exist and cannot be skipped: {', '.join(invalid_cogs)}\n"
+                    f"Available cogs: {', '.join(list(self.bot.cogs.keys())[:10])}{'...' if len(self.bot.cogs) > 10 else ''}"
+                )
         
         embed = discord.Embed(
             title="🔄 Creating Backup",
@@ -183,6 +214,12 @@ class BotBackup(commands.Cog):
         embed.add_field(name="Guilds", value=len(self.bot.guilds), inline=True)
         embed.add_field(name="Cogs", value=len(self.bot.cogs), inline=True)
         
+        if skip_list:
+            embed.add_field(name="Skipped Cogs", value=", ".join(skip_list), inline=False)
+        
+        if overwrite and backup_file.exists():
+            embed.add_field(name="Overwrite", value="Yes", inline=True)
+        
         message = await ctx.send(embed=embed)
         
         try:
@@ -190,14 +227,18 @@ class BotBackup(commands.Cog):
             embed.description = "Retrieving configurations from all cogs..."
             await message.edit(embed=embed)
             
-            all_configs = await self._get_all_cog_configs()
+            all_configs = await self._get_all_cog_configs(skip_list)
             
             # Create backup data
             embed.description = "Organizing backup data..."
             await message.edit(embed=embed)
             
+            metadata = await self._create_backup_metadata()
+            metadata["skipped_cogs"] = skip_list
+            metadata["overwrite"] = overwrite
+            
             backup_data = {
-                "metadata": await self._create_backup_metadata(),
+                "metadata": metadata,
                 "configurations": all_configs,
             }
             
@@ -220,6 +261,10 @@ class BotBackup(commands.Cog):
             success_embed.add_field(name="Backup Name", value=safe_name, inline=True)
             success_embed.add_field(name="File Size", value=f"{size_mb:.2f} MB", inline=True)
             success_embed.add_field(name="Cogs Backed Up", value=len(all_configs), inline=True)
+            
+            if skip_list:
+                success_embed.add_field(name="Skipped Cogs", value=", ".join(skip_list), inline=False)
+            
             success_embed.add_field(name="Location", value=f"`{backup_file}`", inline=False)
             success_embed.timestamp = datetime.utcnow()
             
@@ -233,6 +278,56 @@ class BotBackup(commands.Cog):
             )
             await message.edit(embed=error_embed)
             log.error(f"Backup creation failed: {e}", exc_info=True)
+
+    @backup_group.command(name="cogs")
+    async def backup_cogs(self, ctx: commands.Context):
+        """List all available cogs that can be backed up or skipped."""
+        cogs_with_config = []
+        cogs_without_config = []
+        
+        for cog_name, cog in self.bot.cogs.items():
+            if hasattr(cog, 'config') and isinstance(cog.config, Config):
+                cogs_with_config.append(cog_name)
+            else:
+                cogs_without_config.append(cog_name)
+        
+        embed = discord.Embed(
+            title="📋 Available Cogs",
+            color=discord.Color.blue()
+        )
+        
+        if cogs_with_config:
+            # Split into chunks if too many cogs
+            cog_chunks = [cogs_with_config[i:i+10] for i in range(0, len(cogs_with_config), 10)]
+            for i, chunk in enumerate(cog_chunks):
+                field_name = f"Cogs with Config ({len(cogs_with_config)} total)" if i == 0 else f"Cogs with Config (continued)"
+                embed.add_field(
+                    name=field_name,
+                    value="\n".join([f"• {cog}" for cog in chunk]),
+                    inline=False
+                )
+        
+        if cogs_without_config:
+            embed.add_field(
+                name=f"Cogs without Config ({len(cogs_without_config)} total)",
+                value="\n".join([f"• {cog}" for cog in cogs_without_config[:10]]),
+                inline=False
+            )
+            if len(cogs_without_config) > 10:
+                embed.add_field(
+                    name="Note",
+                    value=f"... and {len(cogs_without_config) - 10} more cogs without config",
+                    inline=False
+                )
+        
+        embed.add_field(
+            name="Usage",
+            value=f"Use `{ctx.prefix}backup create <name> <skip_cogs> <overwrite>`\n"
+                  f"Example: `{ctx.prefix}backup create my_backup Assistant,Calculator True`",
+            inline=False
+        )
+        
+        await ctx.send(embed=embed)
 
     @backup_group.command(name="list")
     async def backup_list(self, ctx: commands.Context):
@@ -321,12 +416,20 @@ class BotBackup(commands.Cog):
             )
             
             # Basic info
+            basic_info = f"**Created:** {metadata.get('created_at', 'Unknown')}\n"
+            basic_info += f"**Bot:** {metadata.get('bot_name', 'Unknown')}\n"
+            basic_info += f"**Guilds:** {metadata.get('guild_count', 'Unknown')}\n"
+            basic_info += f"**Cogs:** {metadata.get('cog_count', 'Unknown')}"
+            
+            if metadata.get('skipped_cogs'):
+                basic_info += f"\n**Skipped Cogs:** {', '.join(metadata['skipped_cogs'])}"
+            
+            if metadata.get('overwrite'):
+                basic_info += f"\n**Overwrite:** Yes"
+            
             embed.add_field(
                 name="Basic Information",
-                value=f"**Created:** {metadata.get('created_at', 'Unknown')}\n"
-                      f"**Bot:** {metadata.get('bot_name', 'Unknown')}\n"
-                      f"**Guilds:** {metadata.get('guild_count', 'Unknown')}\n"
-                      f"**Cogs:** {metadata.get('cog_count', 'Unknown')}",
+                value=basic_info,
                 inline=False
             )
             
@@ -700,12 +803,21 @@ class BotBackup(commands.Cog):
             subparts = []
             
             for cog_name, cog_config in configurations.items():
+                # Check if this individual cog is too large
+                cog_size = len(json.dumps({"test": cog_config}, separators=(',', ':')))
+                
+                if cog_size > 1.5 * 1024 * 1024:  # 1.5MB limit for individual cogs
+                    # This cog is too large, split it into micro-parts
+                    await self._split_individual_cog(ctx, cog_name, cog_config, backup_name, part_num, total_parts, subpart_num)
+                    subpart_num += 1
+                    continue
+                
                 # Check if adding this cog would make the subpart too large
                 test_subpart = current_subpart.copy()
                 test_subpart["configurations"][cog_name] = cog_config
                 test_size = len(json.dumps(test_subpart, separators=(',', ':')))
                 
-                if test_size > 4 * 1024 * 1024 and current_subpart["configurations"]:  # 4MB limit for subparts
+                if test_size > 2 * 1024 * 1024 and current_subpart["configurations"]:  # 2MB limit for subparts
                     # Current subpart is full, start a new one
                     current_subpart["part_info"]["subpart"] = subpart_num
                     subparts.append(current_subpart.copy())
@@ -782,6 +894,128 @@ class BotBackup(commands.Cog):
             await ctx.send(f"❌ Failed to split large part: {str(e)}")
             log.error(f"Large part splitting failed: {e}", exc_info=True)
 
+    async def _split_individual_cog(self, ctx: commands.Context, cog_name: str, cog_config: dict, backup_name: str, part_num: int, total_parts: int, subpart_num: int):
+        """Split an individual cog that's too large into micro-parts."""
+        try:
+            # Split the cog configuration by type (global, guilds, members, users)
+            micro_parts = []
+            current_micro = {
+                "metadata": {"cog_name": cog_name, "backup_name": backup_name},
+                "configurations": {cog_name: {}},
+                "part_info": {
+                    "total_parts": total_parts,
+                    "current_part": part_num,
+                    "backup_name": backup_name,
+                    "subpart": subpart_num,
+                    "micro_part": 0,
+                    "total_micro_parts": 0
+                }
+            }
+            
+            micro_part_num = 1
+            
+            # Process each configuration type separately
+            for config_type in ['global', 'guilds', 'members', 'users']:
+                if config_type not in cog_config:
+                    continue
+                
+                config_data = cog_config[config_type]
+                
+                if config_type == 'global':
+                    # Global config is usually small, add it to current micro part
+                    current_micro["configurations"][cog_name][config_type] = config_data
+                else:
+                    # For guilds, members, users - split by entries
+                    for key, value in config_data.items():
+                        # Check if adding this entry would make the micro part too large
+                        test_micro = current_micro.copy()
+                        if config_type not in test_micro["configurations"][cog_name]:
+                            test_micro["configurations"][cog_name][config_type] = {}
+                        test_micro["configurations"][cog_name][config_type][key] = value
+                        
+                        test_size = len(json.dumps(test_micro, separators=(',', ':')))
+                        
+                        if test_size > 1 * 1024 * 1024 and current_micro["configurations"][cog_name]:  # 1MB limit for micro parts
+                            # Current micro part is full, save it
+                            current_micro["part_info"]["micro_part"] = micro_part_num
+                            micro_parts.append(current_micro.copy())
+                            
+                            # Start new micro part
+                            current_micro = {
+                                "metadata": {"cog_name": cog_name, "backup_name": backup_name},
+                                "configurations": {cog_name: {}},
+                                "part_info": {
+                                    "total_parts": total_parts,
+                                    "current_part": part_num,
+                                    "backup_name": backup_name,
+                                    "subpart": subpart_num,
+                                    "micro_part": 0,
+                                    "total_micro_parts": 0
+                                }
+                            }
+                            micro_part_num += 1
+                        
+                        # Add the entry to current micro part
+                        if config_type not in current_micro["configurations"][cog_name]:
+                            current_micro["configurations"][cog_name][config_type] = {}
+                        current_micro["configurations"][cog_name][config_type][key] = value
+            
+            # Add the last micro part if it has content
+            if current_micro["configurations"][cog_name]:
+                current_micro["part_info"]["micro_part"] = micro_part_num
+                micro_parts.append(current_micro)
+            
+            # Update total micro parts count
+            total_micro_parts = len(micro_parts)
+            for micro_part in micro_parts:
+                micro_part["part_info"]["total_micro_parts"] = total_micro_parts
+            
+            # Send each micro part
+            for i, micro_part in enumerate(micro_parts, 1):
+                micro_filename = f"{backup_name}_part_{part_num}_subpart_{subpart_num}_micro_{i}_of_{total_micro_parts}.json"
+                
+                # Create temporary file
+                backup_path = await self._get_backup_path()
+                temp_file = backup_path / f"temp_{micro_filename}"
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    json.dump(micro_part, f, indent=2, ensure_ascii=False)
+                
+                # Create embed for this micro part
+                micro_embed = discord.Embed(
+                    title=f"📥 Backup Part {part_num} Subpart {subpart_num} Micro {i}/{total_micro_parts}",
+                    color=discord.Color.red()
+                )
+                micro_embed.add_field(name="Backup Name", value=backup_name, inline=True)
+                micro_embed.add_field(name="Cog", value=cog_name, inline=True)
+                micro_embed.add_field(name="Part", value=f"{part_num}/{total_parts}", inline=True)
+                micro_embed.add_field(name="Subpart", value=f"{subpart_num}", inline=True)
+                micro_embed.add_field(name="Micro Part", value=f"{i}/{total_micro_parts}", inline=True)
+                micro_embed.add_field(name="Size", value=f"{temp_file.stat().st_size / (1024*1024):.2f} MB", inline=True)
+                
+                if i == 1:
+                    micro_embed.add_field(
+                        name="Instructions",
+                        value="Download all parts, subparts, and micro parts, then use `[p]backup restore-split <backup_name>` to restore",
+                        inline=False
+                    )
+                
+                # Send the file
+                await ctx.send(
+                    embed=micro_embed,
+                    file=discord.File(temp_file, filename=micro_filename)
+                )
+                
+                # Clean up temp file
+                temp_file.unlink()
+                
+                # Small delay between micro parts
+                if i < total_micro_parts:
+                    await asyncio.sleep(1)
+                    
+        except Exception as e:
+            await ctx.send(f"❌ Failed to split individual cog {cog_name}: {str(e)}")
+            log.error(f"Individual cog splitting failed for {cog_name}: {e}", exc_info=True)
+
     @backup_group.command(name="restore-split")
     async def backup_restore_split(
         self, 
@@ -808,39 +1042,47 @@ class BotBackup(commands.Cog):
         
         backup_path = await self._get_backup_path()
         
-        # Find all parts for this backup (including subparts)
+        # Find all parts for this backup (including subparts and micro parts)
         part_files = list(backup_path.glob(f"{backup_name}_part_*_of_*.json"))
         subpart_files = list(backup_path.glob(f"{backup_name}_part_*_subpart_*_of_*.json"))
+        micro_files = list(backup_path.glob(f"{backup_name}_part_*_subpart_*_micro_*_of_*.json"))
         
-        if not part_files and not subpart_files:
+        if not part_files and not subpart_files and not micro_files:
             return await ctx.send(f"❌ No split backup parts found for `{backup_name}`!")
         
         # Combine all files
-        all_files = part_files + subpart_files
+        all_files = part_files + subpart_files + micro_files
         
-        # Sort parts by part number and subpart number
+        # Sort parts by part number, subpart number, and micro part number
         def extract_part_number(filename):
             try:
-                # Extract part number from filename like "backup_part_1_of_3.json" or "backup_part_1_subpart_1_of_2.json"
+                # Extract part number from filename like "backup_part_1_of_3.json" or "backup_part_1_subpart_1_of_2.json" or "backup_part_1_subpart_1_micro_1_of_3.json"
                 parts = filename.stem.split('_')
                 part_idx = parts.index('part') + 1
                 part_num = int(parts[part_idx])
                 
-                # Check if it's a subpart
-                if 'subpart' in parts:
+                # Check if it's a micro part
+                if 'micro' in parts:
                     subpart_idx = parts.index('subpart') + 1
                     subpart_num = int(parts[subpart_idx])
-                    return (part_num, subpart_num)
+                    micro_idx = parts.index('micro') + 1
+                    micro_num = int(parts[micro_idx])
+                    return (part_num, subpart_num, micro_num)
+                # Check if it's a subpart
+                elif 'subpart' in parts:
+                    subpart_idx = parts.index('subpart') + 1
+                    subpart_num = int(parts[subpart_idx])
+                    return (part_num, subpart_num, 0)
                 else:
-                    return (part_num, 0)
+                    return (part_num, 0, 0)
             except (ValueError, IndexError):
-                return (0, 0)
+                return (0, 0, 0)
         
         all_files.sort(key=extract_part_number)
         
         embed = discord.Embed(
             title="🔄 Restoring Split Backup",
-            description=f"Found {len(all_files)} parts/subparts, reconstructing backup...",
+            description=f"Found {len(all_files)} parts/subparts/micro parts, reconstructing backup...",
             color=discord.Color.orange()
         )
         message = await ctx.send(embed=embed)
@@ -951,7 +1193,7 @@ class BotBackup(commands.Cog):
             
             result_embed.add_field(
                 name="Parts Processed",
-                value=f"{len(all_files)} parts/subparts",
+                value=f"{len(all_files)} parts/subparts/micro parts",
                 inline=True
             )
             
