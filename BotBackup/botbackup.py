@@ -529,18 +529,45 @@ class BotBackup(commands.Cog):
                     )
                 )
             
-            # Generate filename
-            metadata = backup_json.get('metadata', {})
-            created_at = metadata.get('created_at', 'unknown')
-            bot_name = metadata.get('bot_name', 'unknown')
+            # Check if this is a split backup part
+            part_info = backup_json.get('part_info', {})
+            backup_name = part_info.get('backup_name', '')
             
-            try:
-                dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                timestamp = dt.strftime("%Y%m%d_%H%M%S")
-            except:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            if backup_name and part_info:
+                # This is a split backup part, preserve the original filename
+                current_part = part_info.get('current_part', 0)
+                total_parts = part_info.get('total_parts', 0)
+                subpart = part_info.get('subpart', 0)
+                micro_part = part_info.get('micro_part', 0)
+                total_subparts = part_info.get('total_subparts', 0)
+                total_micro_parts = part_info.get('total_micro_parts', 0)
+                
+                if micro_part and total_micro_parts:
+                    # Micro part
+                    filename = f"{backup_name}_part_{current_part}_subpart_{subpart}_micro_{micro_part}_of_{total_micro_parts}.json"
+                elif subpart and total_subparts:
+                    # Subpart
+                    filename = f"{backup_name}_part_{current_part}_subpart_{subpart}_of_{total_subparts}.json"
+                elif current_part and total_parts:
+                    # Regular part
+                    filename = f"{backup_name}_part_{current_part}_of_{total_parts}.json"
+                else:
+                    # Fallback to original naming
+                    filename = f"{backup_name}.json"
+            else:
+                # Regular backup, use original naming
+                metadata = backup_json.get('metadata', {})
+                created_at = metadata.get('created_at', 'unknown')
+                bot_name = metadata.get('bot_name', 'unknown')
+                
+                try:
+                    dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                    timestamp = dt.strftime("%Y%m%d_%H%M%S")
+                except:
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                
+                filename = f"uploaded_{bot_name}_{timestamp}.json"
             
-            filename = f"uploaded_{bot_name}_{timestamp}.json"
             safe_filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.')).rstrip()
             
             # Save file
