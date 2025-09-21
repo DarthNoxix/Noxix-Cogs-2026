@@ -487,7 +487,7 @@ class OpenWebUIMemoryBot(commands.Cog):
 
         # Show typing indicator
         if not followup:
-        await ctx.typing()
+            await ctx.typing()
 
         # Get conversation history
         message_id = str(ctx.message.id)
