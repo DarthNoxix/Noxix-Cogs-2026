@@ -485,6 +485,8 @@ class BotBackup(commands.Cog):
         """
         Download a backup file through Discord.
         
+        For large files (>8MB), the backup will be split into multiple parts.
+        
         Args:
             backup_name: Name of the backup file (without .json extension)
         """
@@ -495,13 +497,8 @@ class BotBackup(commands.Cog):
             return await ctx.send(f"❌ Backup `{backup_name}` not found!")
         
         try:
-            # Check file size (Discord has 25MB limit for non-nitro users)
             file_size = backup_file.stat().st_size
-            if file_size > 25 * 1024 * 1024:  # 25MB
-                return await ctx.send(
-                    "❌ Backup file is too large to upload through Discord (>25MB). "
-                    "Please use a file sharing service or reduce the backup size."
-                )
+            max_size = 7 * 1024 * 1024  # 7MB to be safe (Discord limit is 8MB for non-nitro)
             
             # Create embed with file info
             try:
@@ -528,12 +525,322 @@ class BotBackup(commands.Cog):
                 )
                 embed.add_field(name="Size", value=f"{file_size / (1024*1024):.2f} MB", inline=True)
             
-            # Send file
-            await ctx.send(embed=embed, file=discord.File(backup_file, filename=f"{backup_name}.json"))
+            if file_size <= max_size:
+                # File is small enough to send directly
+                await ctx.send(embed=embed, file=discord.File(backup_file, filename=f"{backup_name}.json"))
+            else:
+                # File is too large, need to split it
+                embed.description = f"File too large ({file_size / (1024*1024):.2f} MB), splitting into parts..."
+                await ctx.send(embed=embed)
+                
+                await self._split_and_send_backup(ctx, backup_file, backup_name, max_size)
             
         except Exception as e:
             await ctx.send(f"❌ Failed to download backup: {str(e)}")
             log.error(f"Backup download failed: {e}", exc_info=True)
+
+    async def _split_and_send_backup(self, ctx: commands.Context, backup_file: Path, backup_name: str, max_size: int):
+        """Split a large backup file and send it in parts."""
+        try:
+            with open(backup_file, 'r', encoding='utf-8') as f:
+                backup_data = json.load(f)
+            
+            # Split configurations into chunks
+            configurations = backup_data.get('configurations', {})
+            cog_names = list(configurations.keys())
+            
+            # Calculate how many cogs per part
+            total_size = len(json.dumps(backup_data, separators=(',', ':')))
+            estimated_parts = max(1, (total_size // max_size) + 1)
+            cogs_per_part = max(1, len(cog_names) // estimated_parts)
+            
+            parts = []
+            current_part = {
+                "metadata": backup_data.get('metadata', {}),
+                "configurations": {},
+                "part_info": {
+                    "total_parts": 0,  # Will be updated after we know how many parts
+                    "current_part": 0,
+                    "backup_name": backup_name
+                }
+            }
+            
+            part_num = 1
+            current_cogs = 0
+            
+            for cog_name, cog_config in configurations.items():
+                current_part["configurations"][cog_name] = cog_config
+                current_cogs += 1
+                
+                # Check if we need to start a new part
+                part_size = len(json.dumps(current_part, separators=(',', ':')))
+                if part_size > max_size or current_cogs >= cogs_per_part:
+                    current_part["part_info"]["current_part"] = part_num
+                    parts.append(current_part.copy())
+                    
+                    # Start new part
+                    current_part = {
+                        "metadata": backup_data.get('metadata', {}),
+                        "configurations": {},
+                        "part_info": {
+                            "total_parts": 0,  # Will be updated
+                            "current_part": 0,
+                            "backup_name": backup_name
+                        }
+                    }
+                    part_num += 1
+                    current_cogs = 0
+            
+            # Add the last part if it has content
+            if current_part["configurations"]:
+                current_part["part_info"]["current_part"] = part_num
+                parts.append(current_part)
+            
+            # Update total parts count
+            total_parts = len(parts)
+            for part in parts:
+                part["part_info"]["total_parts"] = total_parts
+            
+            # Send each part
+            for i, part in enumerate(parts, 1):
+                part_filename = f"{backup_name}_part_{i}_of_{total_parts}.json"
+                
+                # Create temporary file
+                temp_file = backup_file.parent / f"temp_{part_filename}"
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    json.dump(part, f, indent=2, ensure_ascii=False)
+                
+                # Create embed for this part
+                part_embed = discord.Embed(
+                    title=f"📥 Backup Part {i}/{total_parts}",
+                    color=discord.Color.blue()
+                )
+                part_embed.add_field(name="Backup Name", value=backup_name, inline=True)
+                part_embed.add_field(name="Part", value=f"{i}/{total_parts}", inline=True)
+                part_embed.add_field(name="Cogs in Part", value=len(part["configurations"]), inline=True)
+                part_embed.add_field(name="Size", value=f"{temp_file.stat().st_size / (1024*1024):.2f} MB", inline=True)
+                
+                if i == 1:
+                    part_embed.add_field(
+                        name="Instructions",
+                        value="Download all parts and use `[p]backup restore-split <backup_name>` to restore",
+                        inline=False
+                    )
+                
+                # Send the file
+                await ctx.send(
+                    embed=part_embed,
+                    file=discord.File(temp_file, filename=part_filename)
+                )
+                
+                # Clean up temp file
+                temp_file.unlink()
+                
+                # Small delay between parts to avoid rate limits
+                if i < total_parts:
+                    await asyncio.sleep(1)
+            
+        except Exception as e:
+            await ctx.send(f"❌ Failed to split backup: {str(e)}")
+            log.error(f"Backup splitting failed: {e}", exc_info=True)
+
+    @backup_group.command(name="restore-split")
+    async def backup_restore_split(
+        self, 
+        ctx: commands.Context, 
+        backup_name: str,
+        confirm: bool = False
+    ):
+        """
+        Restore bot configurations from split backup files.
+        
+        Upload all backup parts first, then use this command to restore.
+        
+        ⚠️ WARNING: This will overwrite existing configurations!
+        
+        Args:
+            backup_name: Name of the backup (without _part_X_of_Y.json)
+            confirm: Must be True to confirm the restore operation
+        """
+        if not confirm:
+            return await ctx.send(
+                "⚠️ **WARNING:** This will overwrite ALL existing configurations!\n"
+                f"To confirm, run: `{ctx.prefix}backup restore-split {backup_name} True`"
+            )
+        
+        backup_path = await self._get_backup_path()
+        
+        # Find all parts for this backup
+        part_files = list(backup_path.glob(f"{backup_name}_part_*_of_*.json"))
+        
+        if not part_files:
+            return await ctx.send(f"❌ No split backup parts found for `{backup_name}`!")
+        
+        # Sort parts by part number
+        def extract_part_number(filename):
+            try:
+                # Extract part number from filename like "backup_part_1_of_3.json"
+                parts = filename.stem.split('_')
+                part_idx = parts.index('part') + 1
+                return int(parts[part_idx])
+            except (ValueError, IndexError):
+                return 0
+        
+        part_files.sort(key=extract_part_number)
+        
+        embed = discord.Embed(
+            title="🔄 Restoring Split Backup",
+            description=f"Found {len(part_files)} parts, reconstructing backup...",
+            color=discord.Color.orange()
+        )
+        message = await ctx.send(embed=embed)
+        
+        try:
+            # Reconstruct the full backup
+            full_backup = None
+            total_parts = 0
+            
+            for part_file in part_files:
+                with open(part_file, 'r', encoding='utf-8') as f:
+                    part_data = json.load(f)
+                
+                part_info = part_data.get('part_info', {})
+                total_parts = part_info.get('total_parts', 0)
+                current_part = part_info.get('current_part', 0)
+                
+                if full_backup is None:
+                    # Initialize with first part
+                    full_backup = {
+                        "metadata": part_data.get('metadata', {}),
+                        "configurations": {}
+                    }
+                
+                # Merge configurations
+                part_configs = part_data.get('configurations', {})
+                full_backup["configurations"].update(part_configs)
+                
+                embed.description = f"Processing part {current_part}/{total_parts}..."
+                await message.edit(embed=embed)
+            
+            if not full_backup:
+                return await message.edit(
+                    embed=discord.Embed(
+                        title="❌ Restore Failed",
+                        description="Could not reconstruct backup from parts",
+                        color=discord.Color.red()
+                    )
+                )
+            
+            # Now restore the reconstructed backup
+            embed.description = f"Restoring {len(full_backup['configurations'])} cogs..."
+            await message.edit(embed=embed)
+            
+            restored_cogs = []
+            failed_cogs = []
+            
+            # Restore each cog's configuration
+            for cog_name, cog_config in full_backup['configurations'].items():
+                try:
+                    cog = self.bot.get_cog(cog_name)
+                    if not cog or not hasattr(cog, 'config'):
+                        failed_cogs.append(f"{cog_name} (cog not found)")
+                        continue
+                    
+                    # Restore global config
+                    if 'global' in cog_config:
+                        for key, value in cog_config['global'].items():
+                            await cog.config.set_raw(key, value=value)
+                    
+                    # Restore guild configs
+                    if 'guilds' in cog_config:
+                        for guild_id_str, guild_data in cog_config['guilds'].items():
+                            guild_id = int(guild_id_str)
+                            for key, value in guild_data.items():
+                                await cog.config.guild_from_id(guild_id).set_raw(key, value=value)
+                    
+                    # Restore member configs
+                    if 'members' in cog_config:
+                        for guild_id_str, members in cog_config['members'].items():
+                            guild_id = int(guild_id_str)
+                            for member_id_str, member_data in members.items():
+                                member_id = int(member_id_str)
+                                for key, value in member_data.items():
+                                    await cog.config.member_from_ids(guild_id, member_id).set_raw(key, value=value)
+                    
+                    # Restore user configs
+                    if 'users' in cog_config:
+                        for user_id_str, user_data in cog_config['users'].items():
+                            user_id = int(user_id_str)
+                            for key, value in user_data.items():
+                                await cog.config.user_from_id(user_id).set_raw(key, value=value)
+                    
+                    restored_cogs.append(cog_name)
+                    
+                except Exception as e:
+                    failed_cogs.append(f"{cog_name} ({str(e)})")
+                    log.error(f"Failed to restore {cog_name}: {e}")
+            
+            # Create result embed
+            if failed_cogs:
+                color = discord.Color.orange()
+                title = "⚠️ Restore Completed with Errors"
+            else:
+                color = discord.Color.green()
+                title = "✅ Split Backup Restored Successfully"
+            
+            result_embed = discord.Embed(
+                title=title,
+                color=color
+            )
+            
+            result_embed.add_field(
+                name="Restored Cogs",
+                value=f"{len(restored_cogs)} cogs restored successfully",
+                inline=False
+            )
+            
+            result_embed.add_field(
+                name="Parts Processed",
+                value=f"{len(part_files)} parts",
+                inline=True
+            )
+            
+            if restored_cogs:
+                cog_list = ", ".join(restored_cogs[:10])
+                if len(restored_cogs) > 10:
+                    cog_list += f" ... and {len(restored_cogs) - 10} more"
+                result_embed.add_field(
+                    name="Successfully Restored",
+                    value=cog_list,
+                    inline=False
+                )
+            
+            if failed_cogs:
+                result_embed.add_field(
+                    name="Failed Cogs",
+                    value=f"{len(failed_cogs)} cogs failed to restore",
+                    inline=False
+                )
+                failed_list = ", ".join(failed_cogs[:5])
+                if len(failed_cogs) > 5:
+                    failed_list += f" ... and {len(failed_cogs) - 5} more"
+                result_embed.add_field(
+                    name="Failed Details",
+                    value=failed_list,
+                    inline=False
+                )
+            
+            result_embed.timestamp = datetime.utcnow()
+            await message.edit(embed=result_embed)
+            
+        except Exception as e:
+            error_embed = discord.Embed(
+                title="❌ Split Restore Failed",
+                description=f"An error occurred while restoring the split backup:\n```{str(e)}```",
+                color=discord.Color.red()
+            )
+            await message.edit(embed=error_embed)
+            log.error(f"Split backup restore failed: {e}", exc_info=True)
 
     @backup_group.command(name="restore")
     async def backup_restore(

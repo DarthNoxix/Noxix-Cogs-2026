@@ -23,7 +23,8 @@ A comprehensive backup and restore system for Red bot configurations. This cog a
 ### Upload/Download Commands
 
 - `[p]backup upload` - Upload a backup file through Discord (attach .json file)
-- `[p]backup download <name>` - Download a backup file through Discord
+- `[p]backup download <name>` - Download a backup file through Discord (auto-splits large files)
+- `[p]backup restore-split <name> <confirm>` - Restore from split backup files
 
 ### Management Commands
 
@@ -65,6 +66,7 @@ A comprehensive backup and restore system for Red bot configurations. This cog a
 # (attach a .json backup file to the message)
 
 [p]backup download my_migration_backup
+# (for large files, this will automatically split into multiple parts)
 ```
 
 ## Backup File Structure
@@ -107,9 +109,14 @@ Backup files are stored as JSON and contain:
 
 ### Method 1: Direct Upload/Download (Recommended)
 1. **On Source Bot**: Run `[p]backup create migration_backup`
-2. **Download Backup**: Run `[p]backup download migration_backup` and save the file
-3. **On Target Bot**: Upload the file using `[p]backup upload` (attach the .json file)
-4. **Restore**: Run `[p]backup restore uploaded_[botname]_[timestamp] True`
+2. **Download Backup**: Run `[p]backup download migration_backup` and save the file(s)
+   - For large backups (>7MB), multiple part files will be created
+3. **On Target Bot**: 
+   - For single file: Upload using `[p]backup upload` (attach the .json file)
+   - For split files: Upload all part files using `[p]backup upload` (attach each part)
+4. **Restore**: 
+   - Single file: `[p]backup restore uploaded_[botname]_[timestamp] True`
+   - Split files: `[p]backup restore-split migration_backup True`
 
 ### Method 2: Manual File Transfer
 1. **On Source Bot**: Run `[p]backup create migration_backup`
