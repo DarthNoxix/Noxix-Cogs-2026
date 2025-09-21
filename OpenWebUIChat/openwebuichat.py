@@ -850,13 +850,13 @@ class OpenWebUIMemoryBot(commands.Cog):
                 color=discord.Color.red()
             )
         else:
-        del mems[name]
-        await self.config.memories.set(mems)
+            del mems[name]
+            await self.config.memories.set(mems)
             embed = discord.Embed(
                 title="✅ Memory Deleted",
                 description=f"Memory '{name}' has been removed from the knowledge base.",
-                color=discord.Color.green()
-            )
+            color=discord.Color.green()
+        )
         
         await ctx.send(embed=embed)
 
