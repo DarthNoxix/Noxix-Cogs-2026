@@ -374,6 +374,167 @@ class BotBackup(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ Failed to read backup file: {str(e)}")
 
+    @backup_group.command(name="upload")
+    async def backup_upload(self, ctx: commands.Context):
+        """
+        Upload a backup file through Discord.
+        
+        Attach a .json backup file to this command to upload it.
+        """
+        if not ctx.message.attachments:
+            return await ctx.send("❌ Please attach a backup file (.json) to upload!")
+        
+        attachment = ctx.message.attachments[0]
+        
+        # Validate file
+        if not attachment.filename.endswith('.json'):
+            return await ctx.send("❌ Please upload a .json backup file!")
+        
+        if attachment.size > 25 * 1024 * 1024:  # 25MB limit
+            return await ctx.send("❌ File too large! Maximum size is 25MB.")
+        
+        embed = discord.Embed(
+            title="📤 Uploading Backup",
+            description="Downloading and validating backup file...",
+            color=discord.Color.blue()
+        )
+        message = await ctx.send(embed=embed)
+        
+        try:
+            # Download the file
+            backup_data = await attachment.read()
+            
+            # Validate JSON
+            try:
+                backup_json = json.loads(backup_data.decode('utf-8'))
+            except json.JSONDecodeError as e:
+                return await message.edit(
+                    embed=discord.Embed(
+                        title="❌ Invalid Backup File",
+                        description=f"File is not valid JSON: {str(e)}",
+                        color=discord.Color.red()
+                    )
+                )
+            
+            # Validate backup structure
+            if 'metadata' not in backup_json or 'configurations' not in backup_json:
+                return await message.edit(
+                    embed=discord.Embed(
+                        title="❌ Invalid Backup File",
+                        description="File is not a valid BotBackup file (missing metadata or configurations)",
+                        color=discord.Color.red()
+                    )
+                )
+            
+            # Generate filename
+            metadata = backup_json.get('metadata', {})
+            created_at = metadata.get('created_at', 'unknown')
+            bot_name = metadata.get('bot_name', 'unknown')
+            
+            try:
+                dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                timestamp = dt.strftime("%Y%m%d_%H%M%S")
+            except:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            filename = f"uploaded_{bot_name}_{timestamp}.json"
+            safe_filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.')).rstrip()
+            
+            # Save file
+            backup_path = await self._get_backup_path()
+            backup_file = backup_path / safe_filename
+            
+            # Check if file exists
+            counter = 1
+            original_name = safe_filename
+            while backup_file.exists():
+                name_part = original_name.rsplit('.', 1)[0]
+                safe_filename = f"{name_part}_{counter}.json"
+                backup_file = backup_path / safe_filename
+                counter += 1
+            
+            with open(backup_file, 'wb') as f:
+                f.write(backup_data)
+            
+            # Success embed
+            success_embed = discord.Embed(
+                title="✅ Backup Uploaded Successfully",
+                color=discord.Color.green()
+            )
+            success_embed.add_field(name="Filename", value=safe_filename, inline=True)
+            success_embed.add_field(name="Size", value=f"{attachment.size / (1024*1024):.2f} MB", inline=True)
+            success_embed.add_field(name="Original Bot", value=bot_name, inline=True)
+            success_embed.add_field(name="Cogs", value=len(backup_json.get('configurations', {})), inline=True)
+            success_embed.add_field(name="Guilds", value=metadata.get('guild_count', 'Unknown'), inline=True)
+            success_embed.add_field(name="Created", value=created_at, inline=True)
+            success_embed.timestamp = datetime.utcnow()
+            
+            await message.edit(embed=success_embed)
+            
+        except Exception as e:
+            error_embed = discord.Embed(
+                title="❌ Upload Failed",
+                description=f"An error occurred while uploading the backup:\n```{str(e)}```",
+                color=discord.Color.red()
+            )
+            await message.edit(embed=error_embed)
+            log.error(f"Backup upload failed: {e}", exc_info=True)
+
+    @backup_group.command(name="download")
+    async def backup_download(self, ctx: commands.Context, backup_name: str):
+        """
+        Download a backup file through Discord.
+        
+        Args:
+            backup_name: Name of the backup file (without .json extension)
+        """
+        backup_path = await self._get_backup_path()
+        backup_file = backup_path / f"{backup_name}.json"
+        
+        if not backup_file.exists():
+            return await ctx.send(f"❌ Backup `{backup_name}` not found!")
+        
+        try:
+            # Check file size (Discord has 25MB limit for non-nitro users)
+            file_size = backup_file.stat().st_size
+            if file_size > 25 * 1024 * 1024:  # 25MB
+                return await ctx.send(
+                    "❌ Backup file is too large to upload through Discord (>25MB). "
+                    "Please use a file sharing service or reduce the backup size."
+                )
+            
+            # Create embed with file info
+            try:
+                with open(backup_file, 'r', encoding='utf-8') as f:
+                    backup_data = json.load(f)
+                
+                metadata = backup_data.get('metadata', {})
+                embed = discord.Embed(
+                    title="📥 Backup Download",
+                    color=discord.Color.blue()
+                )
+                embed.add_field(name="Filename", value=f"{backup_name}.json", inline=True)
+                embed.add_field(name="Size", value=f"{file_size / (1024*1024):.2f} MB", inline=True)
+                embed.add_field(name="Original Bot", value=metadata.get('bot_name', 'Unknown'), inline=True)
+                embed.add_field(name="Cogs", value=len(backup_data.get('configurations', {})), inline=True)
+                embed.add_field(name="Guilds", value=metadata.get('guild_count', 'Unknown'), inline=True)
+                embed.add_field(name="Created", value=metadata.get('created_at', 'Unknown'), inline=True)
+                
+            except Exception:
+                embed = discord.Embed(
+                    title="📥 Backup Download",
+                    description=f"Downloading backup file: `{backup_name}.json`",
+                    color=discord.Color.blue()
+                )
+                embed.add_field(name="Size", value=f"{file_size / (1024*1024):.2f} MB", inline=True)
+            
+            # Send file
+            await ctx.send(embed=embed, file=discord.File(backup_file, filename=f"{backup_name}.json"))
+            
+        except Exception as e:
+            await ctx.send(f"❌ Failed to download backup: {str(e)}")
+            log.error(f"Backup download failed: {e}", exc_info=True)
+
     @backup_group.command(name="restore")
     async def backup_restore(
         self, 

@@ -20,6 +20,11 @@ A comprehensive backup and restore system for Red bot configurations. This cog a
 - `[p]backup list` - List all available backup files
 - `[p]backup info <name>` - Get detailed information about a backup
 
+### Upload/Download Commands
+
+- `[p]backup upload` - Upload a backup file through Discord (attach .json file)
+- `[p]backup download <name>` - Download a backup file through Discord
+
 ### Management Commands
 
 - `[p]backup delete <name> <confirm>` - Delete a backup file
@@ -51,6 +56,15 @@ A comprehensive backup and restore system for Red bot configurations. This cog a
 ```
 [p]backup list
 [p]backup info my_migration_backup
+```
+
+### Uploading/Downloading Backups
+
+```
+[p]backup upload
+# (attach a .json backup file to the message)
+
+[p]backup download my_migration_backup
 ```
 
 ## Backup File Structure
@@ -91,8 +105,15 @@ Backup files are stored as JSON and contain:
 
 ## Migration Process
 
+### Method 1: Direct Upload/Download (Recommended)
 1. **On Source Bot**: Run `[p]backup create migration_backup`
-2. **Copy Backup File**: Transfer the backup file to your new bot
+2. **Download Backup**: Run `[p]backup download migration_backup` and save the file
+3. **On Target Bot**: Upload the file using `[p]backup upload` (attach the .json file)
+4. **Restore**: Run `[p]backup restore uploaded_[botname]_[timestamp] True`
+
+### Method 2: Manual File Transfer
+1. **On Source Bot**: Run `[p]backup create migration_backup`
+2. **Copy Backup File**: Manually transfer the backup file from the bot's data directory
 3. **On Target Bot**: Load the BotBackup cog and run `[p]backup restore migration_backup True`
 
 ## Safety Features
