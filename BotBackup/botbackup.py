@@ -498,7 +498,7 @@ class BotBackup(commands.Cog):
         
         try:
             file_size = backup_file.stat().st_size
-            max_size = 7 * 1024 * 1024  # 7MB to be safe (Discord limit is 8MB for non-nitro)
+            max_size = 5 * 1024 * 1024  # 5MB to be very safe (Discord limit is 8MB for non-nitro)
             
             # Create embed with file info
             try:
@@ -549,9 +549,9 @@ class BotBackup(commands.Cog):
             configurations = backup_data.get('configurations', {})
             cog_names = list(configurations.keys())
             
-            # Calculate how many cogs per part
+            # Calculate how many cogs per part (be more conservative)
             total_size = len(json.dumps(backup_data, separators=(',', ':')))
-            estimated_parts = max(1, (total_size // max_size) + 1)
+            estimated_parts = max(1, (total_size // max_size) + 2)  # Add extra buffer
             cogs_per_part = max(1, len(cog_names) // estimated_parts)
             
             parts = []
@@ -569,12 +569,35 @@ class BotBackup(commands.Cog):
             current_cogs = 0
             
             for cog_name, cog_config in configurations.items():
+                # Check if adding this cog would make the part too large
+                test_part = current_part.copy()
+                test_part["configurations"][cog_name] = cog_config
+                test_size = len(json.dumps(test_part, separators=(',', ':')))
+                
+                if test_size > (max_size * 0.8) and current_part["configurations"]:
+                    # Current part is full, start a new one
+                    current_part["part_info"]["current_part"] = part_num
+                    parts.append(current_part.copy())
+                    
+                    # Start new part
+                    current_part = {
+                        "metadata": backup_data.get('metadata', {}),
+                        "configurations": {},
+                        "part_info": {
+                            "total_parts": 0,  # Will be updated
+                            "current_part": 0,
+                            "backup_name": backup_name
+                        }
+                    }
+                    part_num += 1
+                    current_cogs = 0
+                
+                # Add the cog to current part
                 current_part["configurations"][cog_name] = cog_config
                 current_cogs += 1
                 
-                # Check if we need to start a new part
-                part_size = len(json.dumps(current_part, separators=(',', ':')))
-                if part_size > max_size or current_cogs >= cogs_per_part:
+                # Check if we've reached the cog limit per part
+                if current_cogs >= cogs_per_part:
                     current_part["part_info"]["current_part"] = part_num
                     parts.append(current_part.copy())
                     
@@ -610,6 +633,14 @@ class BotBackup(commands.Cog):
                 with open(temp_file, 'w', encoding='utf-8') as f:
                     json.dump(part, f, indent=2, ensure_ascii=False)
                 
+                # Check if this part is still too large
+                part_size = temp_file.stat().st_size
+                if part_size > 6 * 1024 * 1024:  # 6MB hard limit
+                    # This part is still too large, need to split it further
+                    temp_file.unlink()
+                    await self._split_large_part(ctx, part, backup_name, i, total_parts)
+                    continue
+                
                 # Create embed for this part
                 part_embed = discord.Embed(
                     title=f"📥 Backup Part {i}/{total_parts}",
@@ -618,7 +649,7 @@ class BotBackup(commands.Cog):
                 part_embed.add_field(name="Backup Name", value=backup_name, inline=True)
                 part_embed.add_field(name="Part", value=f"{i}/{total_parts}", inline=True)
                 part_embed.add_field(name="Cogs in Part", value=len(part["configurations"]), inline=True)
-                part_embed.add_field(name="Size", value=f"{temp_file.stat().st_size / (1024*1024):.2f} MB", inline=True)
+                part_embed.add_field(name="Size", value=f"{part_size / (1024*1024):.2f} MB", inline=True)
                 
                 if i == 1:
                     part_embed.add_field(
@@ -643,6 +674,113 @@ class BotBackup(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ Failed to split backup: {str(e)}")
             log.error(f"Backup splitting failed: {e}", exc_info=True)
+
+    async def _split_large_part(self, ctx: commands.Context, part: dict, backup_name: str, part_num: int, total_parts: int):
+        """Split a part that's still too large into smaller sub-parts."""
+        try:
+            configurations = part["configurations"]
+            cog_names = list(configurations.keys())
+            
+            # Split cogs into smaller chunks
+            max_cogs_per_subpart = max(1, len(cog_names) // 2)  # Split in half
+            
+            subpart_num = 1
+            current_subpart = {
+                "metadata": part["metadata"],
+                "configurations": {},
+                "part_info": {
+                    "total_parts": total_parts,
+                    "current_part": part_num,
+                    "backup_name": backup_name,
+                    "subpart": subpart_num,
+                    "total_subparts": 0  # Will be updated
+                }
+            }
+            
+            subparts = []
+            
+            for cog_name, cog_config in configurations.items():
+                # Check if adding this cog would make the subpart too large
+                test_subpart = current_subpart.copy()
+                test_subpart["configurations"][cog_name] = cog_config
+                test_size = len(json.dumps(test_subpart, separators=(',', ':')))
+                
+                if test_size > 4 * 1024 * 1024 and current_subpart["configurations"]:  # 4MB limit for subparts
+                    # Current subpart is full, start a new one
+                    current_subpart["part_info"]["subpart"] = subpart_num
+                    subparts.append(current_subpart.copy())
+                    
+                    # Start new subpart
+                    current_subpart = {
+                        "metadata": part["metadata"],
+                        "configurations": {},
+                        "part_info": {
+                            "total_parts": total_parts,
+                            "current_part": part_num,
+                            "backup_name": backup_name,
+                            "subpart": 0,
+                            "total_subparts": 0
+                        }
+                    }
+                    subpart_num += 1
+                
+                # Add the cog to current subpart
+                current_subpart["configurations"][cog_name] = cog_config
+            
+            # Add the last subpart if it has content
+            if current_subpart["configurations"]:
+                current_subpart["part_info"]["subpart"] = subpart_num
+                subparts.append(current_subpart)
+            
+            # Update total subparts count
+            total_subparts = len(subparts)
+            for subpart in subparts:
+                subpart["part_info"]["total_subparts"] = total_subparts
+            
+            # Send each subpart
+            for i, subpart in enumerate(subparts, 1):
+                subpart_filename = f"{backup_name}_part_{part_num}_subpart_{i}_of_{total_subparts}.json"
+                
+                # Create temporary file
+                backup_path = await self._get_backup_path()
+                temp_file = backup_path / f"temp_{subpart_filename}"
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    json.dump(subpart, f, indent=2, ensure_ascii=False)
+                
+                # Create embed for this subpart
+                subpart_embed = discord.Embed(
+                    title=f"📥 Backup Part {part_num} Subpart {i}/{total_subparts}",
+                    color=discord.Color.orange()
+                )
+                subpart_embed.add_field(name="Backup Name", value=backup_name, inline=True)
+                subpart_embed.add_field(name="Part", value=f"{part_num}/{total_parts}", inline=True)
+                subpart_embed.add_field(name="Subpart", value=f"{i}/{total_subparts}", inline=True)
+                subpart_embed.add_field(name="Cogs in Subpart", value=len(subpart["configurations"]), inline=True)
+                subpart_embed.add_field(name="Size", value=f"{temp_file.stat().st_size / (1024*1024):.2f} MB", inline=True)
+                
+                if i == 1:
+                    subpart_embed.add_field(
+                        name="Instructions",
+                        value="Download all parts and subparts, then use `[p]backup restore-split <backup_name>` to restore",
+                        inline=False
+                    )
+                
+                # Send the file
+                await ctx.send(
+                    embed=subpart_embed,
+                    file=discord.File(temp_file, filename=subpart_filename)
+                )
+                
+                # Clean up temp file
+                temp_file.unlink()
+                
+                # Small delay between subparts
+                if i < total_subparts:
+                    await asyncio.sleep(1)
+                    
+        except Exception as e:
+            await ctx.send(f"❌ Failed to split large part: {str(e)}")
+            log.error(f"Large part splitting failed: {e}", exc_info=True)
 
     @backup_group.command(name="restore-split")
     async def backup_restore_split(
@@ -670,27 +808,39 @@ class BotBackup(commands.Cog):
         
         backup_path = await self._get_backup_path()
         
-        # Find all parts for this backup
+        # Find all parts for this backup (including subparts)
         part_files = list(backup_path.glob(f"{backup_name}_part_*_of_*.json"))
+        subpart_files = list(backup_path.glob(f"{backup_name}_part_*_subpart_*_of_*.json"))
         
-        if not part_files:
+        if not part_files and not subpart_files:
             return await ctx.send(f"❌ No split backup parts found for `{backup_name}`!")
         
-        # Sort parts by part number
+        # Combine all files
+        all_files = part_files + subpart_files
+        
+        # Sort parts by part number and subpart number
         def extract_part_number(filename):
             try:
-                # Extract part number from filename like "backup_part_1_of_3.json"
+                # Extract part number from filename like "backup_part_1_of_3.json" or "backup_part_1_subpart_1_of_2.json"
                 parts = filename.stem.split('_')
                 part_idx = parts.index('part') + 1
-                return int(parts[part_idx])
+                part_num = int(parts[part_idx])
+                
+                # Check if it's a subpart
+                if 'subpart' in parts:
+                    subpart_idx = parts.index('subpart') + 1
+                    subpart_num = int(parts[subpart_idx])
+                    return (part_num, subpart_num)
+                else:
+                    return (part_num, 0)
             except (ValueError, IndexError):
-                return 0
+                return (0, 0)
         
-        part_files.sort(key=extract_part_number)
+        all_files.sort(key=extract_part_number)
         
         embed = discord.Embed(
             title="🔄 Restoring Split Backup",
-            description=f"Found {len(part_files)} parts, reconstructing backup...",
+            description=f"Found {len(all_files)} parts/subparts, reconstructing backup...",
             color=discord.Color.orange()
         )
         message = await ctx.send(embed=embed)
@@ -700,7 +850,7 @@ class BotBackup(commands.Cog):
             full_backup = None
             total_parts = 0
             
-            for part_file in part_files:
+            for part_file in all_files:
                 with open(part_file, 'r', encoding='utf-8') as f:
                     part_data = json.load(f)
                 
@@ -801,7 +951,7 @@ class BotBackup(commands.Cog):
             
             result_embed.add_field(
                 name="Parts Processed",
-                value=f"{len(part_files)} parts",
+                value=f"{len(all_files)} parts/subparts",
                 inline=True
             )
             
