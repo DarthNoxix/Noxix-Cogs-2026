@@ -236,14 +236,14 @@ class OpenWebUIMemoryBot(commands.Cog):
         await self.config.embed_model.set(model)
         await ctx.send(f"✅ Embed model decreed as {model}.")
 
-    @commands.group()
+    @commands.group(name="openwebuimemory")
     @commands.is_owner()
-    async def memory(self, ctx):
+    async def openwebuimemory(self, ctx):
         """Manage the royal archives of the A Dance of Dragons mod."""
         if ctx.invoked_subcommand is None:
             await ctx.send_help()
 
-    @memory.command()
+    @openwebuimemory.command()
     async def add(self, ctx, name: str, *, text: str):
         """Add a memory to the royal archives."""
         try:
@@ -253,7 +253,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         else:
             await ctx.send("✅ Memory enshrined in the royal archives.")
 
-    @memory.command(name="list")
+    @openwebuimemory.command(name="list")
     async def _list(self, ctx):
         mems = await self.config.memories()
         if not mems:
@@ -261,7 +261,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         out = "\n".join(f"- **{n}**: {d['text'][:80]}…" for n, d in mems.items())
         await ctx.send(out)
 
-    @memory.command(name="del")
+    @openwebuimemory.command(name="del")
     async def _del(self, ctx, name: str):
         mems = await self.config.memories()
         if name not in mems:
