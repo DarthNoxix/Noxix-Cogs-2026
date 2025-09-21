@@ -365,7 +365,7 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
             await ctx.send(part)
 
     # ───────────────── commands ──────────────────
-    @commands.hybrid_command(name="chat")
+    @commands.hybrid_command(name="ask")
     @discord.app_commands.describe(
         message="Your message to the OpenWebUI assistant",
         outputfile="Optional: Save response as a file (filename with extension)",
@@ -390,9 +390,9 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
         `last` - Resend the last message from the conversation
         
         **Examples:**
-        `/chat message: "Write a Python script" outputfile: "script.py"`
-        `/chat message: "Explain this code" extract: true`
-        `/chat message: "Continue" last: true`
+        `/ask message: "Write a Python script" outputfile: "script.py"`
+        `/ask message: "Explain this code" extract: true`
+        `/ask message: "Continue" last: true`
         """
         if ctx.interaction:
             await ctx.interaction.response.defer()
@@ -425,7 +425,7 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
         
         await self.q.put((ctx, message))
 
-    @commands.hybrid_command(name="help")
+    @commands.hybrid_command(name="assistanthelp")
     async def openwebui_chat_help(self, ctx: commands.Context):
         """Get help using the OpenWebUI assistant"""
         txt = (
@@ -436,7 +436,7 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
 `[p]openwebuiconvostats` - view your conversation message count/token usage for that convo.
 `[p]openwebuiclearconvo` - reset your conversation for the current channel/thread/forum.
 `[p]openwebuishowconvo` - get a json dump of your current conversation (this is mostly for debugging)
-`[p]openwebuichat` or `[p]ask` - command prefix for chatting with the bot outside of the live chat, or just @ it.
+        `[p]openwebuichat` or `/ask` - command prefix for chatting with the bot outside of the live chat, or just @ it.
 
 ### Chat Arguments
 `[p]openwebuichat --last` - resend the last message of the conversation.
@@ -658,7 +658,7 @@ If a file has no extension it will still try to read it only if it can be decode
                 log.error("Failed to add memory", exc_info=e)
                 await ctx.send("An error occurred while adding the memory. Please try again.")
 
-    @commands.hybrid_command(name="memories")
+    @commands.hybrid_command(name="memoryviewer")
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
     async def memory_viewer(self, ctx: commands.Context):
@@ -675,7 +675,7 @@ If a file has no extension it will still try to read it only if it can be decode
         )
         await view.start()
 
-    @commands.hybrid_command(name="query")
+    @commands.hybrid_command(name="memoryquery")
     @commands.bot_has_permissions(embed_links=True)
     @discord.app_commands.describe(query="Search query to find related memories")
     async def test_embedding_response(self, ctx: commands.Context, *, query: str):
@@ -1461,12 +1461,12 @@ If a file has no extension it will still try to read it only if it can be decode
                 "title": "Basic Usage",
                 "content": """
 **First Chat:**
-`[p]openwebuichat Hello! How are you today?`
+`/ask message: "Hello! How are you today?"`
 
 **Chat with Arguments:**
-- `[p]openwebuichat --extract Write a Python script` (extract code blocks)
-- `[p]openwebuichat --outputfile script.py Write a Python script` (save as file)
-- `[p]openwebuichat --last` (resend last message)
+- `/ask message: "Write a Python script" extract: true` (extract code blocks)
+- `/ask message: "Write a Python script" outputfile: "script.py"` (save as file)
+- `/ask message: "Continue" last: true` (resend last message)
 
 **File Upload:**
 Upload any supported file with your message - the bot will read and include it automatically.
@@ -1491,9 +1491,9 @@ Data: .sql, .pde
 - **Hybrid Approach**: Combines both for optimal results
 
 **Memory Commands:**
-- `[p]openwebuimemory <name> <text>` - Add a memory
-- `[p]openwebuimemories` - Interactive memory viewer
-- `[p]openwebuiquery <query>` - Search memories
+- `/addmemory <title> <description>` - Add a memory
+- `/memoryviewer` - Interactive memory viewer
+- `/memoryquery <query>` - Search memories
 
 **Memory Types:**
 - **User Memories**: Created manually via commands
