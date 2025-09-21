@@ -1,18 +1,20 @@
 {
   "name": "OpenWebUIChat",
-  "short": "Ultimate AI Assistant with Modern UI & Advanced Features",
-  "description": "The most advanced AI assistant for Discord with OpenWebUI integration. Features modern UI with embeds, buttons, modals, slash commands, auto-responses, conversation memory, rate limiting, and much more!",
+  "short": "Advanced AI assistant with OpenWebUI integration",
+  "description": "Set up and configure an AI assistant (or chat) cog for your server with OpenWebUI language models, with configurable prompt injection, dynamic embeddings, custom function calling, and more",
   "author": ["Geri"],
-  "install_msg": "🚀 OpenWebUIChat loaded! The ultimate AI assistant is ready. Use `/ai setup` for quick configuration or `/chat` to start chatting!",
-  "tags": ["ai", "llm", "chat", "openwebui", "assistant", "embeddings", "functions", "slash", "ui", "modern", "auto-response", "memory"],
+  "install_msg": "Loaded OpenWebUIChat – use [p]openwebuichat to talk to your model, [p]openwebuiassistant setup to configure.",
+  "tags": ["ai", "llm", "chat", "openwebui", "assistant", "embeddings", "functions"],
   "requirements": [
-    "httpx>=0.25.0",
-    "numpy>=1.24.0",
-    "rank-bm25>=0.2.2",
-    "discord.py>=2.3.0"
+    "httpx>=0.25",
+    "chromadb",
+    "numpy",
+    "rank-bm25",
+    "pydantic",
+    "orjson"
   ],
   "required_cogs": {},
   "type": "COG",
   "hidden": false,
-  "end_user_data_statement": "This cog stores OpenWebUI API keys globally, conversation history per guild, and user preferences. All data is stored locally and can be deleted using the provided admin commands."
+  "end_user_data_statement": "This cog stores prompts and OpenWebUI API keys on a per server basis. If enabled, conversations with the bot are also persistently stored. Embeddings and memories are stored locally using ChromaDB."
 }
