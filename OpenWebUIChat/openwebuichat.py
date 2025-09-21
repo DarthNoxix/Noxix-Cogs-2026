@@ -1297,6 +1297,316 @@ If a file has no extension it will still try to read it only if it can be decode
         file = text_to_file(csv_content, "embeddings_export.csv")
         await ctx.send("Here is your embeddings export!", file=file)
 
+    @commands.command(name="openwebuihelp")
+    async def comprehensive_help(self, ctx, *, question: str = None):
+        """Get comprehensive help about the OpenWebUI cog. Ask specific questions!"""
+        
+        help_data = {
+            # Installation and Setup
+            "installation": {
+                "title": "Installation & Setup",
+                "content": """
+**Installation Steps:**
+1. Copy `OpenWebUIChat` folder to your Red-DiscordBot cogs directory
+2. Install dependencies: `pip install chromadb numpy rank-bm25 pydantic orjson httpx`
+3. Load cog: `[p]load OpenWebUIChat`
+4. Set endpoint: `[p]openwebuiassistant endpoint <your-openwebui-url>`
+5. Configure models: `[p]openwebuiassistant model <model-name>`
+
+**System Requirements:**
+- Python 3.8+, Red-DiscordBot, Discord.py 2.0+
+- 2GB+ RAM (4GB+ recommended)
+- 1GB+ free storage space
+- OpenWebUI instance running and accessible
+                """,
+                "keywords": ["install", "setup", "requirements", "dependencies", "load"]
+            },
+            
+            # Basic Usage
+            "basic_usage": {
+                "title": "Basic Usage",
+                "content": """
+**First Chat:**
+`[p]openwebuichat Hello! How are you today?`
+
+**Chat with Arguments:**
+- `[p]openwebuichat --extract Write a Python script` (extract code blocks)
+- `[p]openwebuichat --outputfile script.py Write a Python script` (save as file)
+- `[p]openwebuichat --last` (resend last message)
+
+**File Upload:**
+Upload any supported file with your message - the bot will read and include it automatically.
+
+**Supported File Types:**
+Text: .txt, .md, .json, .yml, .yaml, .xml, .html, .ini, .css, .toml
+Code: .py, .js, .ts, .cs, .c, .cpp, .h, .cc, .go, .java, .php, .swift, .vb
+Config: .conf, .config, .cfg, .env, .spec
+Scripts: .ps1, .bat, .batch, .shell, .sh
+Data: .sql, .pde
+                """,
+                "keywords": ["basic", "chat", "usage", "file", "upload", "arguments"]
+            },
+            
+            # Memory System
+            "memory_system": {
+                "title": "Memory System",
+                "content": """
+**How Memory Works:**
+- **Dense Retrieval**: Uses cosine similarity with embeddings
+- **Sparse Retrieval**: Uses BM25 for keyword matching  
+- **Hybrid Approach**: Combines both for optimal results
+
+**Memory Commands:**
+- `[p]openwebuimemory <name> <text>` - Add a memory
+- `[p]openwebuimemories` - Interactive memory viewer
+- `[p]openwebuiquery <query>` - Search memories
+
+**Memory Types:**
+- **User Memories**: Created manually via commands
+- **AI Memories**: Auto-created from conversations
+- **Static Memories**: Pre-defined, don't change
+
+**Best Practices:**
+- Use descriptive names for memories
+- Keep text concise but informative
+- Regularly review and update memories
+                """,
+                "keywords": ["memory", "embeddings", "retrieval", "hybrid", "bm25", "cosine"]
+            },
+            
+            # Admin Commands
+            "admin_commands": {
+                "title": "Admin Commands",
+                "content": """
+**Basic Configuration:**
+- `[p]openwebuiassistant endpoint <url>` - Set OpenWebUI API endpoint
+- `[p]openwebuiassistant model <model>` - Set chat model
+- `[p]openwebuiassistant embedmodel <model>` - Set embedding model
+- `[p]openwebuiassistant temperature <value>` - Set response temperature (0.0-2.0)
+- `[p]openwebuiassistant maxtokens <tokens>` - Set max tokens per response
+
+**Auto-Response Settings:**
+- `[p]openwebuiassistant toggle <enabled>` - Enable/disable assistant
+- `[p]openwebuiassistant channel <channel>` - Set main response channel
+- `[p]openwebuiassistant minlength <length>` - Min message length
+- `[p]openwebuiassistant questionmark <enabled>` - Only respond to questions
+- `[p]openwebuiassistant mention <enabled>` - Only respond when mentioned
+
+**Memory & Embeddings:**
+- `[p]openwebuiassistant topn <number>` - Top N embeddings to retrieve (0-20)
+- `[p]openwebuiassistant relatedness <threshold>` - Min relatedness (0.0-1.0)
+- `[p]openwebuiassistant embedmethod <method>` - hybrid/dynamic/static/user
+- `[p]openwebuiassistant refreshembeds` - Refresh all embeddings
+                """,
+                "keywords": ["admin", "configuration", "settings", "auto-response", "embedding"]
+            },
+            
+            # Advanced Features
+            "advanced_features": {
+                "title": "Advanced Features",
+                "content": """
+**Function Calling:**
+- `[p]openwebuiassistant functioncalls <enabled>` - Enable/disable
+- `[p]openwebuiassistant maxrecursion <depth>` - Max recursion depth (1-10)
+- Built-in functions: generate_image, search_internet, create_memory, etc.
+
+**Collaboration:**
+- `[p]openwebuiassistant collab <enabled>` - Shared conversations per channel
+- `[p]openwebuiassistant sysoverride <enabled>` - Allow system prompt override
+- `[p]openwebuiassistant tutor <user/role>` - Add/remove tutors
+
+**Content Filtering:**
+- `[p]openwebuiassistant regexblacklist <pattern>` - Add regex patterns
+- `[p]openwebuiassistant regexfailblock <enabled>` - Block failed patterns
+
+**Data Management:**
+- `[p]openwebuiassistant backupcog` - Backup all data
+- `[p]openwebuiassistant exportall` - Export everything
+- `[p]openwebuiassistant importcsv` - Import embeddings from CSV
+                """,
+                "keywords": ["function", "calling", "collaboration", "filtering", "backup", "export"]
+            },
+            
+            # TLDR Command
+            "tldr": {
+                "title": "TLDR Command",
+                "content": """
+**TLDR Summarization:**
+`[p]openwebuitldr [timeframe] [question]`
+
+**Examples:**
+- `[p]openwebuitldr 1h` - Summarize last hour
+- `[p]openwebuitldr 2d What were the main topics?` - Summarize last 2 days with focus
+- `[p]openwebuitldr 30m What decisions were made?` - Summarize last 30 minutes
+
+**Features:**
+- Moderator-only command for security
+- Handles images and file attachments
+- Creates jump links to messages
+- Supports timeframes: 1h, 2d, 30m, etc. (max 48 hours)
+- Requires minimum 5 messages to summarize
+
+**Timeframe Formats:**
+- `1h`, `2h`, `30m` - Hours and minutes
+- `1d`, `2d`, `7d` - Days
+- `1w`, `2w` - Weeks
+                """,
+                "keywords": ["tldr", "summarize", "summary", "moderator", "timeframe"]
+            },
+            
+            # Troubleshooting
+            "troubleshooting": {
+                "title": "Troubleshooting",
+                "content": """
+**Common Issues:**
+
+**"No API key configured"**
+- Set endpoint: `[p]openwebuiassistant endpoint <url>`
+
+**"Model not found"**
+- Check available models in OpenWebUI
+- Set correct model: `[p]openwebuiassistant model <model>`
+
+**"Embedding failed"**
+- Check embedding model: `[p]openwebuiassistant embedmodel <model>`
+- Verify OpenWebUI embedding endpoint
+
+**"Function call failed"**
+- Enable function calls: `[p]openwebuiassistant functioncalls true`
+- Check function registry: `[p]openwebuiassistant functions`
+
+**"Memory not found"**
+- Refresh embeddings: `[p]openwebuiassistant refreshembeds`
+- Check memory viewer: `[p]openwebuimemories`
+
+**Debug Commands:**
+- `[p]openwebuiassistant status` - Check configuration
+- `[p]openwebuishowconvo` - View current conversation
+- `[p]openwebuiassistant usage` - View token usage
+                """,
+                "keywords": ["troubleshoot", "error", "debug", "fix", "problem", "issue"]
+            },
+            
+            # Configuration Examples
+            "configuration": {
+                "title": "Configuration Examples",
+                "content": """
+**Basic Setup:**
+```
+[p]openwebuiassistant endpoint http://localhost:8080
+[p]openwebuiassistant model deepseek-r1:8b
+[p]openwebuiassistant embedmodel bge-large-en-v1.5
+[p]openwebuiassistant toggle true
+[p]openwebuiassistant channel #general
+```
+
+**Advanced Setup:**
+```
+[p]openwebuiassistant system "You are a helpful AI assistant."
+[p]openwebuiassistant temperature 0.7
+[p]openwebuiassistant maxtokens 2000
+[p]openwebuiassistant topn 5
+[p]openwebuiassistant relatedness 0.7
+[p]openwebuiassistant embedmethod hybrid
+[p]openwebuiassistant functioncalls true
+[p]openwebuiassistant collab true
+```
+
+**Moderation Setup:**
+```
+[p]openwebuiassistant minlength 10
+[p]openwebuiassistant questionmark true
+[p]openwebuiassistant regexblacklist "spam|scam"
+[p]openwebuiassistant regexfailblock true
+```
+                """,
+                "keywords": ["config", "configuration", "setup", "example", "basic", "advanced"]
+            }
+        }
+        
+        if not question:
+            # Show all available topics
+            embed = discord.Embed(
+                title="OpenWebUI Assistant Help",
+                description="Ask me about any topic! Here are the main areas:",
+                color=discord.Color.blue()
+            )
+            
+            topics = []
+            for key, data in help_data.items():
+                topics.append(f"**{data['title']}** - Keywords: {', '.join(data['keywords'][:3])}")
+            
+            embed.add_field(
+                name="Available Topics",
+                value="\n".join(topics),
+                inline=False
+            )
+            
+            embed.add_field(
+                name="How to Use",
+                value="`[p]openwebuihelp <topic or question>`\n\nExamples:\n• `[p]openwebuihelp memory system`\n• `[p]openwebuihelp how to install`\n• `[p]openwebuihelp admin commands`\n• `[p]openwebuihelp troubleshooting`",
+                inline=False
+            )
+            
+            await ctx.send(embed=embed)
+            return
+        
+        # Search for relevant topics
+        question_lower = question.lower()
+        matches = []
+        
+        for key, data in help_data.items():
+            # Check title and keywords
+            if any(keyword in question_lower for keyword in data['keywords']):
+                matches.append((key, data))
+            elif any(word in data['title'].lower() for word in question_lower.split()):
+                matches.append((key, data))
+        
+        if not matches:
+            # No specific matches, show general help
+            embed = discord.Embed(
+                title="OpenWebUI Assistant Help",
+                description=f"I couldn't find specific information about '{question}'. Here's what I can help with:",
+                color=discord.Color.orange()
+            )
+            
+            embed.add_field(
+                name="Available Topics",
+                value="• Installation & Setup\n• Basic Usage\n• Memory System\n• Admin Commands\n• Advanced Features\n• TLDR Command\n• Troubleshooting\n• Configuration Examples",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="Try These",
+                value="• `[p]openwebuihelp installation`\n• `[p]openwebuihelp memory`\n• `[p]openwebuihelp admin`\n• `[p]openwebuihelp troubleshooting`",
+                inline=False
+            )
+            
+            await ctx.send(embed=embed)
+            return
+        
+        # Show the best match
+        best_match = matches[0][1]
+        
+        embed = discord.Embed(
+            title=f"OpenWebUI Assistant Help - {best_match['title']}",
+            description=best_match['content'],
+            color=discord.Color.green()
+        )
+        
+        embed.set_footer(text=f"Keywords: {', '.join(best_match['keywords'])}")
+        
+        # If there are multiple matches, mention them
+        if len(matches) > 1:
+            other_topics = [data['title'] for _, data in matches[1:3]]  # Show up to 2 more
+            embed.add_field(
+                name="Related Topics",
+                value="• " + "\n• ".join(other_topics),
+                inline=False
+            )
+        
+        await ctx.send(embed=embed)
+
     @commands.command()
     async def openwebuiconvostats(self, ctx):
         """View your conversation statistics for this channel."""
