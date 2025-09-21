@@ -1,20 +1,48 @@
-# OpenWebUI Chat Bot
+# 🤖 OpenWebUIChat - Ultimate AI Assistant
 
-A simple Discord bot cog that integrates with OpenWebUI to provide AI chat capabilities. This bot can engage in general conversation and optionally use a knowledge base for enhanced responses.
+The most advanced AI assistant for Discord with OpenWebUI integration! Features modern UI, slash commands, auto-responses, conversation memory, and much more.
 
-## 🚀 Features
+## ✨ Features
 
-- **General AI Chat**: Chat with AI models through OpenWebUI
-- **Optional Memory System**: Store and retrieve knowledge using embeddings
-- **Simple Setup**: Easy configuration with minimal dependencies
-- **Hybrid Retrieval**: Combines dense (cosine similarity) and sparse (BM25) search for memory recall
+### 🎨 Modern UI & Experience
+- **Beautiful Embeds**: All responses use rich Discord embeds with colors and formatting
+- **Interactive Buttons**: Regenerate responses, save memories, clear chat history
+- **Modal Forms**: Easy setup and memory management with interactive forms
+- **Slash Commands**: Modern `/chat` and `/ask` commands with autocomplete
+- **Typing Indicators**: Shows when the AI is thinking
+
+### 🧠 Advanced AI Capabilities
+- **Conversation Memory**: Maintains context across messages in a conversation
+- **Knowledge Base**: Store and retrieve information using hybrid search (dense + sparse)
+- **Smart Response Filtering**: Automatically removes unwanted roleplay elements and `<think>` tags
+- **Custom System Prompts**: Per-guild customizable AI personality
+- **Multiple Models**: Support for any OpenWebUI-compatible chat and embedding models
+
+### 🚀 Auto-Response System
+- **Channel Auto-Response**: Automatically respond in configured channels
+- **Smart Triggers**: Responds to mentions, greetings, and questions
+- **Configurable**: Easy setup and management of auto-response channels
+
+### ⚙️ Admin & Management
+- **Rate Limiting**: Configurable per-user rate limits to prevent spam
+- **Guild Management**: Enable/disable AI per server
+- **Conversation Management**: Clear chat history, manage conversations
+- **Memory Management**: Add, search, and delete knowledge base entries
+- **Status Monitoring**: View configuration and usage statistics
+
+### 🔧 Advanced Configuration
+- **Per-Guild Settings**: Customize AI behavior per server
+- **User Preferences**: Individual user settings and preferences
+- **Flexible Models**: Support for any OpenWebUI model
+- **Error Handling**: Graceful error handling with user-friendly messages
 
 ## 📋 Requirements
 
 ### Dependencies
-- `httpx` - HTTP client for OpenWebUI API calls
-- `numpy` - Numerical computations for embeddings
-- `rank-bm25` - BM25 sparse retrieval algorithm
+- `httpx>=0.25.0` - HTTP client for OpenWebUI API calls
+- `numpy>=1.24.0` - Numerical computations for embeddings
+- `rank-bm25>=0.2.2` - BM25 sparse retrieval algorithm
+- `discord.py>=2.3.0` - Discord.py for modern UI features
 
 ### OpenWebUI Setup
 1. Install and run OpenWebUI
@@ -26,7 +54,7 @@ A simple Discord bot cog that integrates with OpenWebUI to provide AI chat capab
 1. **Copy the cog** to your Red-DiscordBot cogs directory
 2. **Install dependencies**:
    ```bash
-   pip install httpx numpy rank-bm25
+   pip install httpx numpy rank-bm25 discord.py
    ```
 3. **Load the cog**:
    ```
@@ -35,89 +63,162 @@ A simple Discord bot cog that integrates with OpenWebUI to provide AI chat capab
 
 ## 🎯 Quick Start
 
-### Basic Setup
+### Interactive Setup
+1. **Use the setup modal**:
+   ```
+   /ai setup
+   ```
+   This opens an interactive form to configure everything at once!
+
+### Manual Setup
 1. **Configure OpenWebUI endpoint**:
    ```
-   [p]setopenwebui url http://localhost:8080
+   /ai url http://localhost:8080
    ```
 
 2. **Set your API key** (if required):
    ```
-   [p]setopenwebui key your-api-key
+   /ai key your-api-key
    ```
 
 3. **Configure models**:
    ```
-   [p]setopenwebui chatmodel deepseek-r1:8b
-   [p]setopenwebui embedmodel bge-large-en-v1.5
+   /ai models deepseek-r1:8b bge-large-en-v1.5
    ```
 
 4. **Start chatting**:
    ```
-   [p]llmchat Hello! How are you today?
+   /chat Hello! How are you today?
    ```
 
 ## 📚 Commands
 
-### Chat Commands
+### 🤖 Chat Commands
 
-#### `[p]llmchat [message]`
-Chat with the AI assistant.
+#### `/chat [message]` or `/ask [question]`
+Chat with the AI assistant using modern slash commands.
 
 **Examples:**
 ```
-[p]llmchat What's the weather like?
-[p]llmchat Write a Python function to sort a list
-[p]llmchat Explain quantum computing in simple terms
+/chat What's the weather like?
+/ask Write a Python function to sort a list
+/chat Explain quantum computing in simple terms
 ```
 
-### Configuration Commands (Owner Only)
+**Features:**
+- Beautiful embed responses
+- Interactive buttons (regenerate, save memory, clear chat)
+- Conversation memory
+- Automatic response cleaning
 
-#### `[p]setopenwebui url <url>`
+### ⚙️ Configuration Commands (Owner Only)
+
+#### `/ai setup`
+Interactive setup modal for quick configuration.
+
+#### `/ai url <url>`
 Set the OpenWebUI API endpoint.
 
-#### `[p]setopenwebui key <key>`
+#### `/ai key <key>`
 Set the API key for authentication.
 
-#### `[p]setopenwebui chatmodel <model>`
-Set the chat model to use.
+#### `/ai models <chat_model> <embed_model>`
+Set the chat and embedding models.
 
-#### `[p]setopenwebui embedmodel <model>`
-Set the embedding model for memory system.
+#### `/ai status`
+Show current configuration and status.
 
-### Memory Management (Owner Only)
+### 📢 Auto-Response Management
 
-#### `[p]openwebuimemory add <name> <text>`
+#### `/ai auto <channel>`
+Add a channel for auto-responses. The AI will automatically respond to:
+- Bot mentions
+- Greetings (hey, hi, hello)
+- Questions (what, how, why, when, where, who)
+
+#### `/ai remove <channel>`
+Remove a channel from auto-responses.
+
+### 🧠 Memory Management (Owner Only)
+
+#### `/memory add <name> <content>`
 Add a memory to the knowledge base.
 
 **Example:**
 ```
-[p]openwebuimemory add "Python basics" "Python is a high-level programming language known for its simplicity and readability."
+/memory add "Python basics" "Python is a high-level programming language known for its simplicity and readability."
 ```
 
-#### `[p]openwebuimemory list`
-List all memories in the knowledge base.
+#### `/memory list`
+List all memories in the knowledge base with previews.
 
-#### `[p]openwebuimemory del <name>`
+#### `/memory delete <name>`
 Delete a memory from the knowledge base.
+
+#### `/memory search <query>`
+Search memories using semantic similarity.
+
+### 👑 Admin Commands (Manage Guild Permission)
+
+#### `/aiadmin enable`
+Enable AI assistant in this guild.
+
+#### `/aiadmin disable`
+Disable AI assistant in this guild.
+
+#### `/aiadmin ratelimit <number>`
+Set rate limit (1-60 messages per minute per user).
+
+#### `/aiadmin prompt <text>`
+Set a custom system prompt for this guild.
+
+#### `/aiadmin clear`
+Clear all conversation history in this guild.
+
+## 🎨 UI Features
+
+### Interactive Response Buttons
+Every AI response includes:
+- **🔄 Regenerate**: Generate a new response to the same question
+- **💾 Save Memory**: Save the response as a memory (requires Manage Messages permission)
+- **🗑️ Clear Chat**: Clear the conversation history
+
+### Beautiful Embeds
+- **Color-coded responses**: Blue for normal responses, red for errors, green for success
+- **Rich formatting**: Proper markdown support and formatting
+- **User attribution**: Shows who requested the response
+- **Timestamps**: When the response was generated
+
+### Modal Forms
+- **Setup Modal**: Interactive configuration with all settings
+- **Memory Modal**: Easy memory creation with name and content fields
+- **Validation**: Proper input validation and error handling
 
 ## 🧠 How It Works
 
-### General Chat
-- The bot responds to any query as a helpful AI assistant
-- Uses a general system prompt for friendly, informative responses
-- Works even without any memories stored
+### Conversation Memory
+- Each conversation thread maintains its own history
+- Context is preserved across multiple messages
+- Automatic cleanup of old conversations (24+ hours)
+- Configurable maximum conversation length
 
-### Memory Enhancement
-- If memories are available, the bot searches for relevant ones
-- Uses hybrid retrieval (dense + sparse search) for better results
-- Enhances responses with relevant knowledge when found
-- Continues working as general chat if no relevant memories are found
+### Knowledge Base System
+- **Hybrid Retrieval**: Combines dense (cosine similarity) and sparse (BM25) search
+- **Semantic Search**: Find relevant information even with different wording
+- **Automatic Integration**: Relevant memories are automatically included in responses
+- **Fallback**: Works perfectly even without any memories
 
-### Hybrid Retrieval System
-1. **Dense Retrieval**: Uses cosine similarity with embeddings
-2. **Sparse Retrieval**: Uses BM25 for keyword matching  
-3. **Combined Results**: Merges both approaches for optimal recall
+### Response Processing
+- **Smart Filtering**: Removes unwanted roleplay elements and `<think>` tags
+- **Content Cleaning**: Handles multiple spaces, excessive newlines
+- **Length Management**: Automatically handles Discord's message limits
+- **Error Recovery**: Graceful handling of API errors
+
+### Rate Limiting
+- **Per-user limits**: Configurable messages per minute
+- **Automatic reset**: Rate limits reset every minute
+- **Guild-specific**: Different limits per server
+- **Admin override**: Admins can adjust limits as needed
 
 ## 🔧 Configuration
 
@@ -126,51 +227,103 @@ Delete a memory from the knowledge base.
 - **Embedding Models**: `bge-large-en-v1.5`, `text-embedding-3-large`, `nomic-embed-text`
 
 ### Memory Settings
-- **Similarity Threshold**: 0.8 (configurable in code)
-- **Top K Results**: 9 memories maximum per query
+- **Similarity Threshold**: 0.7 (configurable in code)
+- **Top K Results**: 5 memories maximum per query
 - **Hybrid Weights**: 70% dense, 30% sparse retrieval
+
+### Rate Limiting
+- **Default**: 5 messages per minute per user
+- **Range**: 1-60 messages per minute
+- **Reset**: Every 60 seconds
 
 ## 🚨 Troubleshooting
 
 ### Common Issues
 
 #### "OpenWebUI URL or key not set"
-- Set the endpoint: `[p]setopenwebui url <your-openwebui-url>`
-- Set the API key if required: `[p]setopenwebui key <your-key>`
+- Use `/ai setup` for interactive configuration
+- Or manually set: `/ai url <your-openwebui-url>`
+- Set API key if required: `/ai key <your-key>`
+
+#### "Rate Limited"
+- You're sending messages too quickly
+- Wait a moment before trying again
+- Admins can adjust limits with `/aiadmin ratelimit <number>`
 
 #### "Failed to retrieve memories"
-- Check your embedding model: `[p]setopenwebui embedmodel <model>`
+- Check your embedding model: `/ai models <chat> <embed>`
 - Verify OpenWebUI is running and accessible
-- The bot will continue with general chat even if memory retrieval fails
+- The bot continues with general chat even if memory retrieval fails
 
 #### No response from chat
 - Verify OpenWebUI is running
-- Check your chat model: `[p]setopenwebui chatmodel <model>`
+- Check your chat model: `/ai models <chat> <embed>`
 - Ensure the API endpoint is correct
+- Check if AI is enabled: `/aiadmin enable`
 
 ### Debug Commands
 ```
-[p]setopenwebui url http://localhost:8080  # Check current URL
-[p]openwebuimemory list                    # Check if memories exist
+/ai status                    # Check current configuration
+/memory list                  # Check if memories exist
+/aiadmin ratelimit 10         # Increase rate limit if needed
 ```
+
+## 🎯 Use Cases
+
+### General Chat
+- Casual conversation with AI
+- Questions and answers
+- Creative writing assistance
+- Code help and debugging
+
+### Knowledge Base
+- Store server rules and information
+- FAQ responses
+- Technical documentation
+- Custom server knowledge
+
+### Auto-Response Channels
+- General help channels
+- Q&A channels
+- Support channels
+- Community interaction
+
+### Admin Management
+- Server-specific AI personalities
+- Rate limiting for busy servers
+- Conversation management
+- Usage monitoring
 
 ## 📁 File Structure
 
 ```
 OpenWebUIChat/
 ├── __init__.py          # Cog setup
-├── info.json           # Cog metadata  
-├── openwebuichat.py    # Main implementation
-└── README.md           # This file
+├── info.json           # Cog metadata with modern features
+├── openwebuichat.py    # Main implementation with all features
+└── README.md           # This comprehensive guide
 ```
+
+## 🔮 Future Features
+
+Planned enhancements include:
+- Image generation integration
+- Code execution capabilities
+- Web search integration
+- Voice message support
+- Multi-language support
+- Advanced analytics
+- Custom function calling
+- Plugin system
 
 ## 🤝 Support
 
 For issues or questions:
 1. Check this README first
-2. Verify your OpenWebUI setup
+2. Use `/ai status` to verify configuration
 3. Check the bot logs for error messages
 4. Ensure all dependencies are installed
+5. Verify OpenWebUI is running and accessible
 
 ## 📄 License
 
@@ -178,4 +331,6 @@ This cog is part of the Noxix-Cogs collection. Please refer to the main reposito
 
 ---
 
-**Happy chatting with your AI assistant!** 🤖✨
+**🚀 Ready to experience the ultimate AI assistant for Discord!** 
+
+Start with `/ai setup` and begin chatting with `/chat` - your AI assistant is ready to help! 🤖✨
