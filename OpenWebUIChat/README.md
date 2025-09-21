@@ -1,13 +1,15 @@
 # OpenWebUI Chat Bot
 
-A simple Discord bot cog that integrates with OpenWebUI to provide AI chat capabilities. This bot can engage in general conversation and optionally use a knowledge base for enhanced responses.
+A modern Discord bot cog that integrates with OpenWebUI to provide AI chat with embeds, modals, and optional memory/knowledge base.
 
 ## 🚀 Features
 
-- **General AI Chat**: Chat with AI models through OpenWebUI
-- **Optional Memory System**: Store and retrieve knowledge using embeddings
-- **Simple Setup**: Easy configuration with minimal dependencies
-- **Hybrid Retrieval**: Combines dense (cosine similarity) and sparse (BM25) search for memory recall
+- **Modern Embeds**: AI responses are delivered as sleek Discord embeds with auto-chunking
+- **Slash + Hybrid Commands**: Use slash or text commands everywhere
+- **Modals for Long Prompts**: Open a modal to paste long requests (`/llmmodal`)
+- **Auto-Reply Channels**: Set channels where the bot auto-answers messages
+- **Optional Memory System**: Store and retrieve knowledge using embeddings (hybrid retrieval)
+- **Think-Filter**: Automatically removes `<think>` or chain-of-thought leakage from outputs
 
 ## 📋 Requirements
 
@@ -57,12 +59,31 @@ A simple Discord bot cog that integrates with OpenWebUI to provide AI chat capab
    [p]llmchat Hello! How are you today?
    ```
 
+5. **Use the modal** (slash only):
+   - `/llmmodal` → opens a modal to enter a long prompt
+
 ## 📚 Commands
 
 ### Chat Commands
 
 #### `[p]llmchat [message]`
 Chat with the AI assistant.
+#### `/llmmodal`
+Open a modal for long prompts.
+
+### Auto-Reply (Owner Only)
+
+#### `[p]openwebui autochannel add <#channel>`
+Enable auto replies in a channel.
+
+#### `[p]openwebui autochannel remove <#channel>`
+Disable auto replies in a channel.
+
+#### `[p]openwebui autochannel list`
+List configured auto-reply channels.
+
+#### `[p]openwebui autochannel mentiononly <true|false>`
+If true, only reply when the bot is mentioned in those channels.
 
 **Examples:**
 ```
@@ -106,6 +127,7 @@ Delete a memory from the knowledge base.
 ### General Chat
 - The bot responds to any query as a helpful AI assistant
 - Uses a general system prompt for friendly, informative responses
+- Explicitly discourages chain-of-thought and filters `<think>` content
 - Works even without any memories stored
 
 ### Memory Enhancement
