@@ -46,6 +46,12 @@ class OpenWebUIMemoryBot(commands.Cog):
             auto_channels=[],  # List[int]
             mention_only=False,
         )
+        # Per-channel settings
+        self.config.register_channel(
+            history_enabled=True,
+            history_max_turns=20,  # number of user/assistant turns to keep
+            history=[],  # list[{role, content}]
+        )
 
     # ───────────────── lifecycle ─────────────────
     async def cog_load(self):
@@ -107,13 +113,13 @@ class OpenWebUIMemoryBot(commands.Cog):
         text = re.sub(r"^\s*\((?:[^()]*|\([^()]*\))*\)\s*", "", text)
         return text.strip() or FALLBACK
 
-    async def _generate_reply(self, question: str, mems: Optional[Dict[str, Dict]] = None) -> str:
+    async def _generate_reply(self, question: str, mems: Optional[Dict[str, Dict]] = None, *, channel: Optional[discord.abc.GuildChannel] = None) -> str:
         """Build messages, call chat API, sanitize and return reply."""
         # Start with a general system prompt and discourage chain-of-thought
         system = (
             "You are a helpful AI assistant. Be concise, friendly, factual, and helpful. "
             "Do not include hidden reasoning, chain-of-thought, or <think> content. Answer directly. "
-            "If uncertain, say you don't know and suggest next steps."
+            "If uncertain, say you don't know and suggest next steps. Your name is Alicent."
         )
 
         # If we have memories, try to find relevant ones and enhance the system prompt
@@ -129,10 +135,17 @@ class OpenWebUIMemoryBot(commands.Cog):
             except Exception as e:
                 log.warning(f"Failed to retrieve memories: {e}")
 
-        reply = await self._api_chat([
-            {"role": "system", "content": system},
-            {"role": "user", "content": question},
-        ])
+        # Build message list with optional channel history (for auto-reply channels)
+        messages = [{"role": "system", "content": system}]
+        if channel is not None:
+            chan_conf = self.config.channel(channel)
+            if await chan_conf.history_enabled():
+                hist = await chan_conf.history()
+                if hist:
+                    messages.extend(hist[-(await chan_conf.history_max_turns()) * 2:])
+        messages.append({"role": "user", "content": question})
+
+        reply = await self._api_chat(messages)
         return self._sanitize_reply(reply)
 
     def _build_embeds(self, content: str, author: Optional[discord.abc.User], model_name: Optional[str]) -> List[discord.Embed]:
@@ -143,11 +156,11 @@ class OpenWebUIMemoryBot(commands.Cog):
             embed = discord.Embed(description=chunk, color=discord.Color.blurple())
             if author:
                 try:
-                    embed.set_author(name="AI Assistant", icon_url=author.display_avatar.url)
+                    embed.set_author(name="Alicent", icon_url=author.display_avatar.url)
                 except Exception:
-                    embed.set_author(name="AI Assistant")
+                    embed.set_author(name="Alicent")
             else:
-                embed.set_author(name="AI Assistant")
+                embed.set_author(name="Alicent")
             footer = "OpenWebUIChat"
             if model_name:
                 footer += f" • {model_name}"
@@ -156,6 +169,20 @@ class OpenWebUIMemoryBot(commands.Cog):
             embed.set_footer(text=footer)
             embeds.append(embed)
         return embeds
+
+    # ───────────────── conversation history helpers ─────────────────
+    async def _append_channel_history(self, channel: discord.abc.GuildChannel, role: str, content: str):
+        chan_conf = self.config.channel(channel)
+        if not await chan_conf.history_enabled():
+            return
+        hist = await chan_conf.history()
+        hist.append({"role": role, "content": content})
+        max_turns = await chan_conf.history_max_turns()
+        # keep last max_turns user+assistant pairs plus system is not stored here
+        max_messages = max_turns * 2
+        if len(hist) > max_messages:
+            hist = hist[-max_messages:]
+        await chan_conf.history.set(hist)
 
     def _normalize_text(self, text: str) -> str:
         text = text.lower()
@@ -231,12 +258,20 @@ class OpenWebUIMemoryBot(commands.Cog):
     async def _handle(self, ctx: commands.Context, question: str):
         await ctx.typing()
         mems = await self.config.memories()
-        reply = await self._generate_reply(question, mems)
+        reply = await self._generate_reply(question, mems, channel=ctx.channel if isinstance(ctx.channel, discord.abc.GuildChannel) else None)
         log.info(f"AI response (sanitized): '{reply}'")
         model = await self.config.chat_model()
         embeds = self._build_embeds(reply, ctx.author, model)
         for embed in embeds:
             await ctx.send(embed=embed)
+        # Update channel history for auto-reply channels only
+        try:
+            auto_channels = await self.config.guild(ctx.guild).auto_channels()
+            if ctx.channel.id in auto_channels:
+                await self._append_channel_history(ctx.channel, "user", question)
+                await self._append_channel_history(ctx.channel, "assistant", reply)
+        except Exception:
+            pass
 
     # ───────────────── commands ──────────────────
     @commands.hybrid_command()
@@ -390,6 +425,40 @@ class OpenWebUIMemoryBot(commands.Cog):
         if ctx.valid:  # don't trigger if it's a command
             return
         await self.q.put((ctx, message.clean_content))
+
+    # ───────────────── history management ─────────────────
+    @openwebui.group(name="history")
+    @commands.is_owner()
+    async def history(self, ctx: commands.Context):
+        """Manage per-channel conversation history."""
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help()
+
+    @history.command(name="enable")
+    async def history_enable(self, ctx: commands.Context, value: bool):
+        await self.config.channel(ctx.channel).history_enabled.set(value)
+        await ctx.send(f"History enabled set to {value} for this channel.")
+
+    @history.command(name="setmax")
+    async def history_setmax(self, ctx: commands.Context, turns: int):
+        if turns < 0:
+            return await ctx.send("Turns must be 0 or greater.")
+        await self.config.channel(ctx.channel).history_max_turns.set(turns)
+        await ctx.send(f"Max history turns set to {turns} for this channel.")
+
+    @history.command(name="clear")
+    async def history_clear(self, ctx: commands.Context):
+        await self.config.channel(ctx.channel).history.set([])
+        await ctx.send("🧹 Cleared history for this channel.")
+
+    @history.command(name="show")
+    async def history_show(self, ctx: commands.Context):
+        hist = await self.config.channel(ctx.channel).history()
+        if not hist:
+            return await ctx.send("No history for this channel.")
+        text = "\n".join(f"{m['role']}: {m['content'][:300]}" for m in hist)
+        for page in pagify(text):
+            await ctx.send(page)
 
 
 async def setup(bot: Red):
