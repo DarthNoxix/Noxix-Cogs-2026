@@ -1003,7 +1003,7 @@ class MemoryViewer(discord.ui.View):
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=0)
     async def previous_memory(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.memory_list:
-            return await interaction.response.send_message(_("No memories to navigate!"), ephemeral=True)
+            return await interaction.response.send_message("No memories to navigate!", ephemeral=True)
         
         self.current_index = (self.current_index - 1) % len(self.memory_list)
         await interaction.response.defer()
@@ -1012,7 +1012,7 @@ class MemoryViewer(discord.ui.View):
     @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary, row=0)
     async def next_memory(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.memory_list:
-            return await interaction.response.send_message(_("No memories to navigate!"), ephemeral=True)
+            return await interaction.response.send_message("No memories to navigate!", ephemeral=True)
         
         self.current_index = (self.current_index + 1) % len(self.memory_list)
         await interaction.response.defer()
@@ -1021,7 +1021,7 @@ class MemoryViewer(discord.ui.View):
     @discord.ui.button(emoji="✏️", style=discord.ButtonStyle.primary, row=0)
     async def edit_memory(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.memory_list:
-            return await interaction.response.send_message(_("No memories to edit!"), ephemeral=True)
+            return await interaction.response.send_message("No memories to edit!", ephemeral=True)
         
         memory_name, memory_data = self.get_current_memory()
         modal = EditMemoryModal(memory_name, memory_data.text)
@@ -1034,16 +1034,16 @@ class MemoryViewer(discord.ui.View):
         new_text = modal.new_text
         
         if not new_name or not new_text:
-            return await interaction.followup.send(_("Memory name and content cannot be empty!"), ephemeral=True)
+            return await interaction.followup.send("Memory name and content cannot be empty!", ephemeral=True)
         
         # Check if name already exists (and it's not the same memory)
         if new_name in self.conf.embeddings and new_name != memory_name:
-            return await interaction.followup.send(_("A memory with that name already exists!"), ephemeral=True)
+            return await interaction.followup.send("A memory with that name already exists!", ephemeral=True)
         
         # Create new embedding
         new_embedding = await self.embed_method(new_text, self.conf)
         if not new_embedding:
-            return await interaction.followup.send(_("Failed to process the new memory content!"), ephemeral=True)
+            return await interaction.followup.send("Failed to process the new memory content!", ephemeral=True)
         
         # Remove old memory if name changed
         if new_name != memory_name:
@@ -1068,13 +1068,13 @@ class MemoryViewer(discord.ui.View):
         await asyncio.to_thread(self.conf.sync_embeddings, self.ctx.guild.id)
         await self.save()
         
-        await interaction.followup.send(_("Memory updated successfully! 🎉"), ephemeral=True)
+        await interaction.followup.send("Memory updated successfully! 🎉", ephemeral=True)
         await self.update_display()
 
     @discord.ui.button(emoji="🗑️", style=discord.ButtonStyle.danger, row=0)
     async def delete_memory(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.memory_list:
-            return await interaction.response.send_message(_("No memories to delete!"), ephemeral=True)
+            return await interaction.response.send_message("No memories to delete!", ephemeral=True)
         
         memory_name, _ = self.get_current_memory()
         modal = DeleteMemoryModal(memory_name)
@@ -1084,7 +1084,7 @@ class MemoryViewer(discord.ui.View):
             return
         
         if not modal.confirmed:
-            return await interaction.followup.send(_("Deletion cancelled - names didn't match."), ephemeral=True)
+            return await interaction.followup.send("Deletion cancelled - names didn't match.", ephemeral=True)
         
         # Delete the memory
         del self.conf.embeddings[memory_name]
@@ -1097,7 +1097,7 @@ class MemoryViewer(discord.ui.View):
         await asyncio.to_thread(self.conf.sync_embeddings, self.ctx.guild.id)
         await self.save()
         
-        await interaction.followup.send(_("Memory deleted successfully! 🗑️"), ephemeral=True)
+        await interaction.followup.send("Memory deleted successfully! 🗑️", ephemeral=True)
         await self.update_display()
 
     @discord.ui.button(emoji="➕", style=discord.ButtonStyle.success, row=1)
@@ -1112,15 +1112,15 @@ class MemoryViewer(discord.ui.View):
         text = modal.text
         
         if not name or not text:
-            return await interaction.followup.send(_("Memory name and content cannot be empty!"), ephemeral=True)
+            return await interaction.followup.send("Memory name and content cannot be empty!", ephemeral=True)
         
         if name in self.conf.embeddings:
-            return await interaction.followup.send(_("A memory with that name already exists!"), ephemeral=True)
+            return await interaction.followup.send("A memory with that name already exists!", ephemeral=True)
         
         # Create new embedding
         new_embedding = await self.embed_method(text, self.conf)
         if not new_embedding:
-            return await interaction.followup.send(_("Failed to process the memory content!"), ephemeral=True)
+            return await interaction.followup.send("Failed to process the memory content!", ephemeral=True)
         
         # Add new memory
         self.conf.embeddings[name] = Embedding(
@@ -1139,15 +1139,15 @@ class MemoryViewer(discord.ui.View):
         await asyncio.to_thread(self.conf.sync_embeddings, self.ctx.guild.id)
         await self.save()
         
-        await interaction.followup.send(_("Memory created successfully! 🎉"), ephemeral=True)
+        await interaction.followup.send("Memory created successfully! 🎉", ephemeral=True)
         await self.update_display()
 
     @discord.ui.button(emoji="🔍", style=discord.ButtonStyle.secondary, row=1)
     async def search_memory(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.memory_list:
-            return await interaction.response.send_message(_("No memories to search!"), ephemeral=True)
+            return await interaction.response.send_message("No memories to search!", ephemeral=True)
         
-        modal = SearchModal(_("Search Memories"), "")
+        modal = SearchModal("Search Memories", "")
         await interaction.response.send_modal(modal)
         
         if await modal.wait():
@@ -1155,17 +1155,17 @@ class MemoryViewer(discord.ui.View):
         
         query = modal.query.lower()
         if not query:
-            return await interaction.followup.send(_("Search query cannot be empty!"), ephemeral=True)
+            return await interaction.followup.send("Search query cannot be empty!", ephemeral=True)
         
         # Find matching memory
         for i, (name, _) in enumerate(self.memory_list):
             if query in name.lower():
                 self.current_index = i
-                await interaction.followup.send(_("Found matching memory! 🔍"), ephemeral=True)
+                await interaction.followup.send("Found matching memory! 🔍", ephemeral=True)
                 await self.update_display()
                 return
         
-        await interaction.followup.send(_("No memories found matching that query! 🔍"), ephemeral=True)
+        await interaction.followup.send("No memories found matching that query! 🔍", ephemeral=True)
 
     @discord.ui.button(emoji="🔄", style=discord.ButtonStyle.secondary, row=1)
     async def refresh_view(self, interaction: discord.Interaction, button: discord.ui.Button):
