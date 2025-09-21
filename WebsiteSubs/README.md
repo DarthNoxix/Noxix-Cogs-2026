@@ -65,6 +65,17 @@ The website username will be displayed in:
 
 This helps you verify if users are actually subscribed on your website when reviewing the notifications.
 
+### Leave As Is Button
+
+When using the `addcurrent` command, an additional "Leave As Is" button appears in the notification embed. This button allows you to:
+
+- Acknowledge that you've added a current subscriber
+- Let their subscription expire naturally without extending it
+- Keep track of when their current subscription will expire
+- Avoid accidentally extending subscriptions for users who may not be actively subscribed
+
+This is particularly useful when adding existing subscribers who may have already paid for a specific period and you just want to track when their current subscription expires.
+
 ## How It Works
 
 ### Subscription Process
@@ -72,7 +83,7 @@ This helps you verify if users are actually subscribed on your website when revi
 1. **Give Subscription**: Use `[p]websitesubs give @user knight username123` to give a user subscription roles with their website username
 2. **Automatic Tracking**: The system automatically tracks when the subscription was given, by whom, and when it expires
 3. **Notification**: A message is sent to the notification channel with user details and verification buttons
-4. **Verification**: Staff can click "Subscribed" to extend by 30 days or "Unsubscribed" to remove roles
+4. **Verification**: Staff can click "Subscribed" to extend by 30 days, "Unsubscribed" to remove roles, or "Leave As Is" (for current subscribers) to let it expire naturally
 
 ### Automatic Expiration
 
@@ -90,7 +101,10 @@ When a subscription is given, a notification is sent to the configured channel c
 - When it was given
 - When it expires
 - Website username (if provided)
-- Interactive buttons for verification
+- Interactive buttons for verification:
+  - **Subscribed** (green) - Extends subscription by 30 days
+  - **Unsubscribed** (red) - Removes subscription roles
+  - **Leave As Is** (gray) - Only appears for current subscribers, lets subscription expire naturally
 
 ### Manual Management
 

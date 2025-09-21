@@ -328,7 +328,7 @@ class WebsiteSubs(commands.Cog):
         await self.config.guild(guild).subscriptions.set(subscriptions)
         
         # Send notification
-        await self._send_subscription_notification(ctx, member, subscription_data, "added")
+        await self._send_subscription_notification(ctx, member, subscription_data, "added", is_current=True)
         
         embed = discord.Embed(
             title="✅ Current Subscriber Added",
@@ -342,7 +342,7 @@ class WebsiteSubs(commands.Cog):
         
         await ctx.send(embed=embed)
 
-    async def _send_subscription_notification(self, ctx, member: discord.Member, sub_data: dict, action: str):
+    async def _send_subscription_notification(self, ctx, member: discord.Member, sub_data: dict, action: str, is_current: bool = False):
         """Send subscription notification to the configured channel."""
         guild = ctx.guild
         notification_channel_id = await self.config.guild(guild).notification_channel()
@@ -374,7 +374,7 @@ class WebsiteSubs(commands.Cog):
         if website_username:
             embed.add_field(name="Website Username", value=website_username, inline=True)
         
-        view = SubscriptionVerificationView(self, member, sub_data)
+        view = SubscriptionVerificationView(self, member, sub_data, is_current=is_current)
         await channel.send(embed=embed, view=view)
 
     @websitesubs.command(name="list")
@@ -560,11 +560,20 @@ class WebsiteSubs(commands.Cog):
 class SubscriptionVerificationView(discord.ui.View):
     """View for subscription verification buttons."""
     
-    def __init__(self, cog: WebsiteSubs, member: discord.Member, sub_data: dict):
+    def __init__(self, cog: WebsiteSubs, member: discord.Member, sub_data: dict, is_current: bool = False):
         super().__init__(timeout=None)
         self.cog = cog
         self.member = member
         self.sub_data = sub_data
+        self.is_current = is_current
+        
+        # Remove the "Leave As Is" button if this is not a current subscriber
+        if not is_current:
+            # Remove the "Leave As Is" button from the view
+            for item in self.children:
+                if hasattr(item, 'label') and item.label == "Leave As Is":
+                    self.remove_item(item)
+                    break
 
     @discord.ui.button(label="Subscribed", style=discord.ButtonStyle.green, emoji="✅")
     async def subscribed_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -609,3 +618,19 @@ class SubscriptionVerificationView(discord.ui.View):
         
         # Send confirmation
         await interaction.followup.send(f"❌ Removed subscription from {self.member.mention}.", ephemeral=True)
+
+    @discord.ui.button(label="Leave As Is", style=discord.ButtonStyle.gray, emoji="⏸️", row=1)
+    async def leave_as_is_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Leave the subscription as is (only for current subscribers)."""
+        if not interaction.user.guild_permissions.manage_roles:
+            await interaction.response.send_message("❌ You don't have permission to manage subscriptions.", ephemeral=True)
+            return
+        
+        # Update embed to show it's been acknowledged
+        embed = interaction.message.embeds[0]
+        embed.set_field_at(4, name="Status", value="⏸️ Left As Is - Will Expire Naturally", inline=True)
+        
+        await interaction.response.edit_message(embed=embed, view=None)
+        
+        # Send confirmation
+        await interaction.followup.send(f"⏸️ Left {self.member.mention}'s subscription as is. It will expire naturally on <t:{int(datetime.fromisoformat(self.sub_data['expires_at']).timestamp())}:F>.", ephemeral=True)
