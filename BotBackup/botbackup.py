@@ -480,28 +480,102 @@ class BotBackup(commands.Cog):
     @backup_group.command(name="upload")
     async def backup_upload(self, ctx: commands.Context):
         """
-        Upload a backup file through Discord.
+        Upload backup files through Discord.
         
-        Attach a .json backup file to this command to upload it.
+        Attach one or more .json backup files to this command to upload them.
+        Supports uploading multiple split backup parts at once.
         """
         if not ctx.message.attachments:
-            return await ctx.send("❌ Please attach a backup file (.json) to upload!")
+            return await ctx.send("❌ Please attach one or more backup files (.json) to upload!")
         
-        attachment = ctx.message.attachments[0]
-        
-        # Validate file
-        if not attachment.filename.endswith('.json'):
-            return await ctx.send("❌ Please upload a .json backup file!")
-        
-        if attachment.size > 25 * 1024 * 1024:  # 25MB limit
-            return await ctx.send("❌ File too large! Maximum size is 25MB.")
+        attachments = ctx.message.attachments
+        successful_uploads = []
+        failed_uploads = []
         
         embed = discord.Embed(
-            title="📤 Uploading Backup",
-            description="Downloading and validating backup file...",
+            title="📤 Uploading Backup Files",
+            description=f"Processing {len(attachments)} file(s)...",
             color=discord.Color.blue()
         )
         message = await ctx.send(embed=embed)
+        
+        for i, attachment in enumerate(attachments, 1):
+            try:
+                embed.description = f"Processing file {i}/{len(attachments)}: {attachment.filename}"
+                await message.edit(embed=embed)
+                
+                result = await self._process_single_upload(attachment)
+                if result['success']:
+                    successful_uploads.append(result)
+                else:
+                    failed_uploads.append({'filename': attachment.filename, 'error': result['error']})
+                    
+            except Exception as e:
+                failed_uploads.append({'filename': attachment.filename, 'error': str(e)})
+                log.error(f"Failed to process {attachment.filename}: {e}")
+        
+        # Create final result embed
+        if failed_uploads:
+            color = discord.Color.orange() if successful_uploads else discord.Color.red()
+            title = "⚠️ Upload Completed with Errors" if successful_uploads else "❌ Upload Failed"
+        else:
+            color = discord.Color.green()
+            title = "✅ All Files Uploaded Successfully"
+        
+        result_embed = discord.Embed(
+            title=title,
+            color=color
+        )
+        
+        result_embed.add_field(
+            name="Summary",
+            value=f"**Successful:** {len(successful_uploads)}\n**Failed:** {len(failed_uploads)}",
+            inline=False
+        )
+        
+        if successful_uploads:
+            file_list = []
+            for upload in successful_uploads:
+                file_list.append(f"• {upload['filename']} ({upload['size']:.2f} MB)")
+            result_embed.add_field(
+                name="Successfully Uploaded",
+                value="\n".join(file_list[:10]),  # Show max 10 files
+                inline=False
+            )
+            if len(successful_uploads) > 10:
+                result_embed.add_field(
+                    name="Note",
+                    value=f"... and {len(successful_uploads) - 10} more files",
+                    inline=False
+                )
+        
+        if failed_uploads:
+            error_list = []
+            for upload in failed_uploads:
+                error_list.append(f"• {upload['filename']}: {upload['error']}")
+            result_embed.add_field(
+                name="Failed Uploads",
+                value="\n".join(error_list[:5]),  # Show max 5 errors
+                inline=False
+            )
+            if len(failed_uploads) > 5:
+                result_embed.add_field(
+                    name="Note",
+                    value=f"... and {len(failed_uploads) - 5} more errors",
+                    inline=False
+                )
+        
+        result_embed.timestamp = datetime.utcnow()
+        await message.edit(embed=result_embed)
+
+    async def _process_single_upload(self, attachment):
+        """Process a single file upload and return the result."""
+        # Validate file
+        if not attachment.filename.endswith('.json'):
+            return {'success': False, 'error': 'Not a .json file'}
+        
+        if attachment.size > 25 * 1024 * 1024:  # 25MB limit
+            return {'success': False, 'error': 'File too large (>25MB)'}
         
         try:
             # Download the file
@@ -511,23 +585,11 @@ class BotBackup(commands.Cog):
             try:
                 backup_json = json.loads(backup_data.decode('utf-8'))
             except json.JSONDecodeError as e:
-                return await message.edit(
-                    embed=discord.Embed(
-                        title="❌ Invalid Backup File",
-                        description=f"File is not valid JSON: {str(e)}",
-                        color=discord.Color.red()
-                    )
-                )
+                return {'success': False, 'error': f'Invalid JSON: {str(e)}'}
             
             # Validate backup structure
-            if 'metadata' not in backup_json or 'configurations' not in backup_json:
-                return await message.edit(
-                    embed=discord.Embed(
-                        title="❌ Invalid Backup File",
-                        description="File is not a valid BotBackup file (missing metadata or configurations)",
-                        color=discord.Color.red()
-                    )
-                )
+            if 'metadata' not in backup_json and 'part_info' not in backup_json:
+                return {'success': False, 'error': 'Not a valid BotBackup file'}
             
             # Check if this is a split backup part
             part_info = backup_json.get('part_info', {})
@@ -586,29 +648,15 @@ class BotBackup(commands.Cog):
             with open(backup_file, 'wb') as f:
                 f.write(backup_data)
             
-            # Success embed
-            success_embed = discord.Embed(
-                title="✅ Backup Uploaded Successfully",
-                color=discord.Color.green()
-            )
-            success_embed.add_field(name="Filename", value=safe_filename, inline=True)
-            success_embed.add_field(name="Size", value=f"{attachment.size / (1024*1024):.2f} MB", inline=True)
-            success_embed.add_field(name="Original Bot", value=bot_name, inline=True)
-            success_embed.add_field(name="Cogs", value=len(backup_json.get('configurations', {})), inline=True)
-            success_embed.add_field(name="Guilds", value=metadata.get('guild_count', 'Unknown'), inline=True)
-            success_embed.add_field(name="Created", value=created_at, inline=True)
-            success_embed.timestamp = datetime.utcnow()
-            
-            await message.edit(embed=success_embed)
+            return {
+                'success': True,
+                'filename': safe_filename,
+                'size': attachment.size / (1024*1024),
+                'backup_name': backup_name or 'unknown'
+            }
             
         except Exception as e:
-            error_embed = discord.Embed(
-                title="❌ Upload Failed",
-                description=f"An error occurred while uploading the backup:\n```{str(e)}```",
-                color=discord.Color.red()
-            )
-            await message.edit(embed=error_embed)
-            log.error(f"Backup upload failed: {e}", exc_info=True)
+            return {'success': False, 'error': str(e)}
 
     @backup_group.command(name="download")
     async def backup_download(self, ctx: commands.Context, backup_name: str):
