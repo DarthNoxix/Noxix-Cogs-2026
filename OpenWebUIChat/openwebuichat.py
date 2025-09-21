@@ -380,33 +380,47 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
         
         # Remove trailing slash
         url = url.rstrip('/')
-        
+
+        # Normalize to a v1-ready base
+        # Accept inputs like: https://host, https://host/api, https://host/api/v1
+        if url.endswith('/api/v1'):
+            base_v1 = url
+        elif url.endswith('/api'):
+            base_v1 = url + '/v1'
+        else:
+            base_v1 = url + '/api/v1'
+
         # Test the endpoint
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{url}/api/v1/models", timeout=10.0)
+                response = await client.get(f"{base_v1}/models", timeout=10.0)
                 if response.status_code == 200:
-                    models_data = response.json()
                     models = []
-                    if isinstance(models_data, dict) and "data" in models_data:
-                        models = [model.get("id", model.get("name", "")) for model in models_data["data"]]
-                    elif isinstance(models_data, list):
-                        models = [model.get("id", model.get("name", "")) for model in models_data]
+                    try:
+                        models_data = response.json()
+                        if isinstance(models_data, dict) and "data" in models_data:
+                            models = [model.get("id", model.get("name", "")) for model in models_data["data"]]
+                        elif isinstance(models_data, list):
+                            models = [model.get("id", model.get("name", "")) for model in models_data]
+                    except Exception:
+                        # Not JSON or unexpected shape
+                        models = []
                     
                     conf = self.db.get_conf(ctx.guild)
-                    conf.api_base = url
+                    conf.api_base = base_v1
                     await self.save_conf()
                     
                     embed = discord.Embed(
                         title="✅ OpenWebUI Endpoint Set Successfully!",
-                        description=f"**Endpoint:** {url}",
+                        description=f"**Endpoint:** {base_v1}",
                         color=discord.Color.green()
                     )
-                    embed.add_field(
-                        name="Available Models",
-                        value="\n".join(models[:10]) + (f"\n... and {len(models) - 10} more" if len(models) > 10 else ""),
-                        inline=False
-                    )
+                    if models:
+                        embed.add_field(
+                            name="Available Models",
+                            value="\n".join(models[:10]) + (f"\n... and {len(models) - 10} more" if len(models) > 10 else ""),
+                            inline=False
+                        )
                     embed.add_field(
                         name="Next Steps",
                         value="1. Set a model: `[p]openwebuiassistant model <model>`\n"
@@ -417,7 +431,7 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
                 else:
                     await ctx.send(f"❌ **Connection Failed!** Status code: {response.status_code}\nPlease check if OpenWebUI is running and accessible.")
         except Exception as e:
-            await ctx.send(f"❌ **Connection Error:** {str(e)}\nPlease check if the URL is correct and OpenWebUI is running.")
+            await ctx.send(f"❌ **Connection Error:** {str(e)}\nPlease verify the URL. Try also: `{url}` or `{url}/api`." )
 
     @openwebuiassistant.command()
     @discord.app_commands.describe(model="The chat model to use")
@@ -697,7 +711,7 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
                 return "❌ No API endpoint configured"
             
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{conf.api_base}/api/v1/models", timeout=5.0)
+                response = await client.get(f"{conf.api_base}/models", timeout=5.0)
                 if response.status_code == 200:
                     return "✅ OpenWebUI is running"
                 else:
@@ -748,7 +762,7 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
                 }
                 
                 response = await client.post(
-                    f"{conf.api_base}/api/v1/chat/completions",
+                    f"{conf.api_base}/chat/completions",
                     json=payload,
                     timeout=30.0
                 )
@@ -794,7 +808,7 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
                     payload["functions"] = functions
                 
                 response = await client.post(
-                    f"{conf.api_base}/api/v1/chat/completions",
+                    f"{conf.api_base}/chat/completions",
                     json=payload,
                     timeout=30.0
                 )
@@ -819,7 +833,7 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
                 }
                 
                 response = await client.post(
-                    f"{conf.api_base}/api/v1/embeddings",
+                    f"{conf.api_base}/embeddings",
                     json=payload,
                     timeout=30.0
                 )
