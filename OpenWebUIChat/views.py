@@ -13,6 +13,21 @@ class MemoryViewer(View):
         self.current_page = 0
         self.items_per_page = 10
         
+        # Create buttons with proper callbacks
+        self.prev_button = Button(label="◀️", style=discord.ButtonStyle.secondary)
+        self.next_button = Button(label="▶️", style=discord.ButtonStyle.secondary)
+        self.delete_button = Button(label="🗑️", style=discord.ButtonStyle.danger)
+        
+        # Set up callbacks
+        self.prev_button.callback = self.previous_page
+        self.next_button.callback = self.next_page
+        self.delete_button.callback = self.delete_memory
+        
+        # Add buttons to view
+        self.add_item(self.prev_button)
+        self.add_item(self.next_button)
+        self.add_item(self.delete_button)
+        
     async def get_embed(self) -> discord.Embed:
         """Get the current page embed"""
         embed = discord.Embed(
@@ -43,8 +58,8 @@ class MemoryViewer(View):
         
         return embed
     
-    @Button(label="◀️", style=discord.ButtonStyle.secondary)
-    async def previous_page(self, interaction: discord.Interaction, button: Button):
+    async def previous_page(self, interaction: discord.Interaction):
+        """Handle previous page button click"""
         if self.current_page > 0:
             self.current_page -= 1
             embed = await self.get_embed()
@@ -52,8 +67,8 @@ class MemoryViewer(View):
         else:
             await interaction.response.defer()
     
-    @Button(label="▶️", style=discord.ButtonStyle.secondary)
-    async def next_page(self, interaction: discord.Interaction, button: Button):
+    async def next_page(self, interaction: discord.Interaction):
+        """Handle next page button click"""
         total_pages = (len(self.memories) + self.items_per_page - 1) // self.items_per_page
         if self.current_page < total_pages - 1:
             self.current_page += 1
@@ -62,8 +77,8 @@ class MemoryViewer(View):
         else:
             await interaction.response.defer()
     
-    @Button(label="🗑️", style=discord.ButtonStyle.danger)
-    async def delete_memory(self, interaction: discord.Interaction, button: Button):
+    async def delete_memory(self, interaction: discord.Interaction):
+        """Handle delete memory button click"""
         # This would need to be implemented with a modal or select menu
         await interaction.response.send_message("Delete functionality would be implemented here.", ephemeral=True)
 
@@ -108,6 +123,13 @@ class SettingsView(View):
     def __init__(self, conf: Any, timeout: int = 60):
         super().__init__(timeout=timeout)
         self.conf = conf
+        
+        # Create refresh button with proper callback
+        self.refresh_button = Button(label="🔄 Refresh", style=discord.ButtonStyle.primary)
+        self.refresh_button.callback = self.refresh
+        
+        # Add button to view
+        self.add_item(self.refresh_button)
     
     async def get_embed(self) -> discord.Embed:
         """Get the settings embed"""
@@ -145,7 +167,7 @@ class SettingsView(View):
         
         return embed
     
-    @Button(label="🔄 Refresh", style=discord.ButtonStyle.primary)
-    async def refresh(self, interaction: discord.Interaction, button: Button):
+    async def refresh(self, interaction: discord.Interaction):
+        """Handle refresh button click"""
         embed = await self.get_embed()
         await interaction.response.edit_message(embed=embed, view=self)
