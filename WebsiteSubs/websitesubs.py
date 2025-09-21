@@ -1,4 +1,5 @@
 import asyncio
+import io
 import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union
@@ -479,6 +480,111 @@ class WebsiteSubs(commands.Cog):
         
         await ctx.send(embed=embed)
 
+    @websitesubs.command(name="export")
+    async def export_data(self, ctx):
+        """Export all subscription data to a JSON file."""
+        guild = ctx.guild
+        subscriptions = await self.config.guild(guild).subscriptions()
+        early_access_role = await self.config.guild(guild).early_access_role()
+        tier_roles = await self.config.guild(guild).tier_roles()
+        notification_channel = await self.config.guild(guild).notification_channel()
+        
+        # Create export data
+        export_data = {
+            "guild_id": guild.id,
+            "guild_name": guild.name,
+            "export_timestamp": datetime.now().isoformat(),
+            "early_access_role": early_access_role,
+            "tier_roles": tier_roles,
+            "notification_channel": notification_channel,
+            "subscriptions": subscriptions
+        }
+        
+        # Convert to JSON string
+        import json
+        json_data = json.dumps(export_data, indent=2)
+        
+        # Create file
+        filename = f"websitesubs_export_{guild.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        # Send as file
+        file_obj = discord.File(
+            io.StringIO(json_data),
+            filename=filename,
+            description="Website Subs export data"
+        )
+        
+        embed = discord.Embed(
+            title="📤 Data Export Complete",
+            description=f"Exported {len(subscriptions)} subscriptions and configuration data.",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="File", value=filename, inline=True)
+        embed.add_field(name="Subscriptions", value=str(len(subscriptions)), inline=True)
+        embed.add_field(name="Export Time", value=f"<t:{int(datetime.now().timestamp())}:F>", inline=True)
+        
+        await ctx.send(embed=embed, file=file_obj)
+
+    @websitesubs.command(name="import")
+    async def import_data(self, ctx):
+        """Import subscription data from a JSON file."""
+        # Check if user has attachment
+        if not ctx.message.attachments:
+            await ctx.send("❌ Please attach a JSON file to import. Use `[p]websitesubs export` to create an export file first.")
+            return
+        
+        attachment = ctx.message.attachments[0]
+        
+        # Check file extension
+        if not attachment.filename.lower().endswith('.json'):
+            await ctx.send("❌ Please attach a JSON file (.json extension).")
+            return
+        
+        try:
+            # Download and parse the file
+            content = await attachment.read()
+            import json
+            import_data = json.loads(content.decode('utf-8'))
+            
+            # Validate the data structure
+            required_keys = ['guild_id', 'early_access_role', 'tier_roles', 'subscriptions']
+            for key in required_keys:
+                if key not in import_data:
+                    await ctx.send(f"❌ Invalid export file. Missing required field: {key}")
+                    return
+            
+            # Confirm import
+            embed = discord.Embed(
+                title="⚠️ Import Confirmation",
+                description="This will **OVERWRITE** all current subscription data and configuration.",
+                color=discord.Color.orange()
+            )
+            embed.add_field(name="Source Guild", value=import_data.get('guild_name', 'Unknown'), inline=True)
+            embed.add_field(name="Subscriptions", value=str(len(import_data['subscriptions'])), inline=True)
+            embed.add_field(name="Export Date", value=import_data.get('export_timestamp', 'Unknown'), inline=True)
+            embed.add_field(name="Early Access Role", value=f"<@&{import_data['early_access_role']}>" if import_data['early_access_role'] else "Not set", inline=True)
+            embed.add_field(name="Notification Channel", value=f"<#{import_data['notification_channel']}>" if import_data['notification_channel'] else "Not set", inline=True)
+            
+            # Show tier roles
+            tier_info = []
+            for tier, role_id in import_data['tier_roles'].items():
+                tier_info.append(f"**{tier.title()}**: <@&{role_id}>")
+            embed.add_field(name="Tier Roles", value="\n".join(tier_info) if tier_info else "Not set", inline=False)
+            
+            embed.add_field(
+                name="⚠️ Warning",
+                value="This action **CANNOT BE UNDONE**. All current data will be lost!",
+                inline=False
+            )
+            
+            view = ImportConfirmationView(self, import_data)
+            await ctx.send(embed=embed, view=view)
+            
+        except json.JSONDecodeError:
+            await ctx.send("❌ Invalid JSON file. Please check the file format.")
+        except Exception as e:
+            await ctx.send(f"❌ Error reading file: {str(e)}")
+
     @websitesubs.command(name="setearlyaccess")
     async def set_early_access_role(self, ctx, role: discord.Role):
         """Manually set the Early Access role."""
@@ -634,3 +740,60 @@ class SubscriptionVerificationView(discord.ui.View):
         
         # Send confirmation
         await interaction.followup.send(f"⏸️ Left {self.member.mention}'s subscription as is. It will expire naturally on <t:{int(datetime.fromisoformat(self.sub_data['expires_at']).timestamp())}:F>.", ephemeral=True)
+
+
+class ImportConfirmationView(discord.ui.View):
+    """View for import confirmation buttons."""
+    
+    def __init__(self, cog: WebsiteSubs, import_data: dict):
+        super().__init__(timeout=300)  # 5 minute timeout
+        self.cog = cog
+        self.import_data = import_data
+
+    @discord.ui.button(label="Confirm Import", style=discord.ButtonStyle.green, emoji="✅")
+    async def confirm_import(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Confirm and execute the import."""
+        if not interaction.user.guild_permissions.manage_roles:
+            await interaction.response.send_message("❌ You don't have permission to manage subscriptions.", ephemeral=True)
+            return
+        
+        guild = interaction.guild
+        
+        try:
+            # Import the data
+            await self.cog.config.guild(guild).early_access_role.set(self.import_data['early_access_role'])
+            await self.cog.config.guild(guild).tier_roles.set(self.import_data['tier_roles'])
+            await self.cog.config.guild(guild).notification_channel.set(self.import_data['notification_channel'])
+            await self.cog.config.guild(guild).subscriptions.set(self.import_data['subscriptions'])
+            
+            # Update embed
+            embed = interaction.message.embeds[0]
+            embed.title = "✅ Import Successful"
+            embed.color = discord.Color.green()
+            embed.description = f"Successfully imported {len(self.import_data['subscriptions'])} subscriptions and configuration data."
+            
+            await interaction.response.edit_message(embed=embed, view=None)
+            
+            # Send confirmation
+            await interaction.followup.send(f"✅ Successfully imported data from {self.import_data.get('guild_name', 'Unknown')} guild.", ephemeral=True)
+            
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Error during import: {str(e)}", ephemeral=True)
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, emoji="❌")
+    async def cancel_import(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Cancel the import."""
+        if not interaction.user.guild_permissions.manage_roles:
+            await interaction.response.send_message("❌ You don't have permission to manage subscriptions.", ephemeral=True)
+            return
+        
+        # Update embed
+        embed = interaction.message.embeds[0]
+        embed.title = "❌ Import Cancelled"
+        embed.color = discord.Color.red()
+        embed.description = "Import operation was cancelled."
+        
+        await interaction.response.edit_message(embed=embed, view=None)
+        
+        # Send confirmation
+        await interaction.followup.send("❌ Import cancelled.", ephemeral=True)

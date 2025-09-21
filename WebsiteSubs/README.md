@@ -36,6 +36,8 @@ The setup command will automatically:
 - `[p]websitesubs config` - Show current configuration
 - `[p]websitesubs setroles <noble> <knight> <squire> <levy> <farmer>` - Manually set role IDs for each tier
 - `[p]websitesubs setearlyaccess <role>` - Manually set the Early Access role
+- `[p]websitesubs export` - Export all subscription data to a JSON file
+- `[p]websitesubs import` - Import subscription data from a JSON file (attach file to message)
 
 ### Subscription Tiers
 
@@ -75,6 +77,35 @@ When using the `addcurrent` command, an additional "Leave As Is" button appears 
 - Avoid accidentally extending subscriptions for users who may not be actively subscribed
 
 This is particularly useful when adding existing subscribers who may have already paid for a specific period and you just want to track when their current subscription expires.
+
+### Data Export/Import
+
+The cog includes powerful export and import functionality for data migration and backup:
+
+#### Export Data
+```bash
+[p]websitesubs export
+```
+- Exports all subscription data, configuration, and settings to a JSON file
+- Includes guild information, role IDs, notification channel, and all subscriptions
+- File is automatically named with timestamp and guild ID
+- Perfect for backups or migrating to another bot
+
+#### Import Data
+```bash
+[p]websitesubs import
+```
+- Attach a JSON export file to your message
+- Shows a confirmation dialog with all import details
+- **WARNING**: This will **OVERWRITE** all current data
+- Includes safety checks and validation
+- Interactive confirmation with "Confirm Import" and "Cancel" buttons
+
+#### Use Cases
+- **Backup**: Regular exports for data safety
+- **Migration**: Moving to a different bot instance
+- **Testing**: Importing test data to development servers
+- **Recovery**: Restoring from a backup after data loss
 
 ## How It Works
 
