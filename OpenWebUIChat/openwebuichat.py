@@ -429,7 +429,7 @@ If a file has no extension it will still try to read it only if it can be decode
         await ctx.send(embed=embed)
 
     # ───────────────── setup & memory management ─────────────────
-    @commands.group()
+    @commands.group(name="setopenwebui")
     @commands.is_owner()
     async def setopenwebui(self, ctx):
         """Configure the royal connection to the OpenWebUI archives."""
@@ -456,7 +456,7 @@ If a file has no extension it will still try to read it only if it can be decode
         await self.config.embed_model.set(model)
         await ctx.send(f"✅ Embed model decreed as {model}.")
 
-    @commands.group()
+    @commands.group(name="openwebuimemory")
     @commands.is_owner()
     async def openwebuimemory(self, ctx):
         """Manage the royal archives of the A Dance of Dragons mod."""
@@ -490,7 +490,7 @@ If a file has no extension it will still try to read it only if it can be decode
         await self.config.memories.set(mems)
         await ctx.send("❌ Memory removed from the royal archives.")
 
-    @commands.command(name="openwebuimemory")
+    @commands.command(name="openwebuiaddmemory")
     @commands.guild_only()
     async def add_memory(self, ctx: commands.Context, title: str, *, description: str):
         """Add a memory/embedding to the assistant"""
@@ -583,7 +583,7 @@ If a file has no extension it will still try to read it only if it can be decode
 
     # ───────────────── Advanced Assistant Commands ─────────────────
     
-    @commands.group()
+    @commands.group(name="openwebuiassistant")
     async def openwebuiassistant(self, ctx):
         """Configure the OpenWebUI assistant for this server."""
         if ctx.invoked_subcommand is None:
@@ -1607,7 +1607,7 @@ Data: .sql, .pde
         
         await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.command(name="openwebuiconvostats")
     async def openwebuiconvostats(self, ctx):
         """View your conversation statistics for this channel."""
         conf = self.db.get_conf(ctx.guild)
@@ -1662,7 +1662,7 @@ Data: .sql, .pde
         embed = await view.get_embed()
         await ctx.send(embed=embed, view=view)
 
-    @commands.command()
+    @commands.command(name="openwebuiclearconvo")
     async def openwebuiclearconvo(self, ctx):
         """Clear your conversation with the OpenWebUI assistant in this channel."""
         conversation = self.db.get_conversation(ctx.author.id, ctx.channel.id, ctx.guild.id)
@@ -1670,7 +1670,7 @@ Data: .sql, .pde
         await self.save_conf()
         await ctx.send("✅ Your conversation with the OpenWebUI assistant has been cleared.")
 
-    @commands.command()
+    @commands.command(name="openwebuishowconvo")
     async def openwebuishowconvo(self, ctx):
         """Show your current conversation with the OpenWebUI assistant."""
         conversation = self.db.get_conversation(ctx.author.id, ctx.channel.id, ctx.guild.id)
