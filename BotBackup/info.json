@@ -1,0 +1,17 @@
+{
+    "author": ["Noxix"],
+    "name": "BotBackup",
+    "install_msg": "BotBackup cog loaded! Use `[p]backup create` to backup all configurations.",
+    "short": "Backup and restore all bot configurations for easy migration",
+    "description": "A comprehensive backup and restore system for Red bot configurations. Allows you to backup all cog configurations for every server and restore them with a single command, making bot migration seamless.",
+    "tags": [
+        "backup",
+        "restore",
+        "migration",
+        "config",
+        "utility"
+    ],
+    "requirements": [],
+    "min_bot_version": "3.5.0",
+    "end_user_data_statement": "This cog stores backup files of bot configurations. These backups may contain server settings and user data from other cogs."
+}
