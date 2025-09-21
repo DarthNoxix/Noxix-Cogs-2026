@@ -184,6 +184,61 @@ class OpenWebUIMemoryBot(commands.Cog):
             hist = hist[-max_messages:]
         await chan_conf.history.set(hist)
 
+    # ───────────────── interactive controls ─────────────────
+    class _RegeneratePayload:
+        def __init__(self, user_text: str):
+            self.user_text = user_text
+
+    class _ClearHistoryPayload:
+        pass
+
+    def _build_controls_view(self, channel: discord.abc.GuildChannel, author: discord.abc.User, original_user: str):
+        view = discord.ui.View(timeout=120)
+
+        async def regen_callback(interaction: discord.Interaction):
+            if interaction.user.id != author.id:
+                return await interaction.response.send_message("Only the requester can use these controls.", ephemeral=True)
+            await interaction.response.defer()
+            await self._append_channel_history(channel, "user", original_user)
+            mems = await self.config.memories()
+            reply = await self._generate_reply(original_user, mems, channel=channel)
+            model = await self.config.chat_model()
+            embeds = self._build_embeds(reply, author, model)
+            await self._append_channel_history(channel, "assistant", reply)
+            for embed in embeds:
+                await interaction.followup.send(embed=embed)
+
+        async def clear_callback(interaction: discord.Interaction):
+            if interaction.user.id != author.id:
+                return await interaction.response.send_message("Only the requester can use these controls.", ephemeral=True)
+            await self.config.channel(channel).history.set([])
+            await interaction.response.send_message("🧹 Channel history cleared.", ephemeral=True)
+
+        async def like_callback(interaction: discord.Interaction):
+            await interaction.response.send_message("Thanks for the feedback!", ephemeral=True)
+
+        async def dislike_callback(interaction: discord.Interaction):
+            await interaction.response.send_message("Feedback noted.", ephemeral=True)
+
+        view.add_item(discord.ui.Button(label="Regenerate", style=discord.ButtonStyle.secondary))
+        view.children[-1].callback = regen_callback
+        view.add_item(discord.ui.Button(label="Clear History", style=discord.ButtonStyle.danger))
+        view.children[-1].callback = clear_callback
+        view.add_item(discord.ui.Button(emoji="👍", style=discord.ButtonStyle.success))
+        view.children[-1].callback = like_callback
+        view.add_item(discord.ui.Button(emoji="👎", style=discord.ButtonStyle.secondary))
+        view.children[-1].callback = dislike_callback
+        return view
+
+    def _can_use_controls(self, channel: Optional[discord.abc.GuildChannel]) -> bool:
+        return isinstance(channel, discord.abc.GuildChannel)
+
+    def _controls_for(self, channel: discord.abc.GuildChannel, author: discord.abc.User, original_user: str):
+        try:
+            return self._build_controls_view(channel, author, original_user)
+        except Exception:
+            return None
+
     def _normalize_text(self, text: str) -> str:
         text = text.lower()
         text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
@@ -257,18 +312,30 @@ class OpenWebUIMemoryBot(commands.Cog):
 
     async def _handle(self, ctx: commands.Context, question: str):
         await ctx.typing()
+        # If this is an auto-reply channel, append the user's message BEFORE generating the reply
+        try:
+            auto_channels = await self.config.guild(ctx.guild).auto_channels()
+            is_auto = ctx.channel.id in auto_channels
+        except Exception:
+            is_auto = False
+        if is_auto and isinstance(ctx.channel, discord.abc.GuildChannel):
+            await self._append_channel_history(ctx.channel, "user", question)
+
         mems = await self.config.memories()
         reply = await self._generate_reply(question, mems, channel=ctx.channel if isinstance(ctx.channel, discord.abc.GuildChannel) else None)
         log.info(f"AI response (sanitized): '{reply}'")
         model = await self.config.chat_model()
         embeds = self._build_embeds(reply, ctx.author, model)
-        for embed in embeds:
-            await ctx.send(embed=embed)
+        # Send first embed with controls, rest plain
+        if embeds:
+            view = self._controls_for(ctx.channel, ctx.author, question) if self._can_use_controls(ctx.channel) else None
+            await ctx.send(embed=embeds[0], view=view)
+            for embed in embeds[1:]:
+                await ctx.send(embed=embed)
         # Update channel history for auto-reply channels only
         try:
             auto_channels = await self.config.guild(ctx.guild).auto_channels()
             if ctx.channel.id in auto_channels:
-                await self._append_channel_history(ctx.channel, "user", question)
                 await self._append_channel_history(ctx.channel, "assistant", reply)
         except Exception:
             pass
@@ -433,6 +500,42 @@ class OpenWebUIMemoryBot(commands.Cog):
         """Manage per-channel conversation history."""
         if ctx.invoked_subcommand is None:
             await ctx.send_help()
+
+    @openwebui.command(name="help")
+    async def openweb_help(self, ctx: commands.Context, *, query: Optional[str] = None):
+        """Interactive help for OpenWebUIChat. Optionally search with a query."""
+        parts = [
+            "OpenWebUIChat Help",
+            "\nChat:",
+            "- [p]llmchat <message>",
+            "- /llmmodal (open a modal)",
+            "\nAuto-Reply:",
+            "- [p]openwebui autochannel add #channel",
+            "- [p]openwebui autochannel remove #channel",
+            "- [p]openwebui autochannel list",
+            "- [p]openwebui autochannel mentiononly <true|false>",
+            "\nHistory:",
+            "- [p]openwebui history enable <true|false>",
+            "- [p]openwebui history setmax <turns>",
+            "- [p]openwebui history show | clear",
+            "\nModels:",
+            "- [p]setopenwebui chatmodel <name>",
+            "- [p]setopenwebui embedmodel <name>",
+            "- [p]setopenwebui url <endpoint>",
+            "- [p]setopenwebui key <key>",
+        ]
+        base_text = "\n".join(parts)
+        if not query:
+            for page in pagify(base_text):
+                await ctx.send(page)
+            return
+        # Simple search (case-insensitive substring) across help text
+        q = query.lower()
+        hits = [line for line in base_text.splitlines() if q in line.lower()]
+        if not hits:
+            return await ctx.send(f"No help entries match '{query}'.")
+        for page in pagify("\n".join(hits)):
+            await ctx.send(page)
 
     @history.command(name="enable")
     async def history_enable(self, ctx: commands.Context, value: bool):
