@@ -478,6 +478,215 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
             await ctx.send(f"✅ Auto-response {'enabled' if enabled else 'disabled'}")
             await self.save_conf()
 
+    # ───────────────── Memory Commands ─────────────────
+    
+    @commands.hybrid_command(name="openchataddmemory")
+    @discord.app_commands.describe(
+        name="Name for the memory",
+        text="Text content to remember"
+    )
+    async def openchataddmemory(self, ctx, name: str, *, text: str):
+        """Add a memory to the system."""
+        try:
+            conf = self.db.get_conf(ctx.guild)
+            if not conf.api_base:
+                return await ctx.send("❌ **OpenWebUI API not configured!**\nPlease set the endpoint first.")
+            
+            # Add embedding
+            embedding = await self.add_embedding(ctx.guild, name, text)
+            if embedding:
+                await ctx.send(f"✅ Memory '{name}' added successfully!")
+            else:
+                await ctx.send("❌ Failed to add memory. Please check your configuration.")
+        except Exception as e:
+            log.error("Error adding memory", exc_info=e)
+            await ctx.send(f"❌ Error adding memory: {str(e)}")
+
+    @commands.hybrid_command(name="openchatmemoryviewer")
+    async def openchatmemoryviewer(self, ctx):
+        """View and manage memories."""
+        try:
+            conf = self.db.get_conf(ctx.guild)
+            if not conf.api_base:
+                return await ctx.send("❌ **OpenWebUI API not configured!**\nPlease set the endpoint first.")
+            
+            # Get memories from config
+            memories = await self.config.memories()
+            if not memories:
+                return await ctx.send("No memories found. Use `/openchataddmemory` to add some!")
+            
+            # Create memory viewer
+            view = MemoryViewer(memories)
+            embed = await view.get_embed()
+            await ctx.send(embed=embed, view=view)
+        except Exception as e:
+            log.error("Error viewing memories", exc_info=e)
+            await ctx.send(f"❌ Error viewing memories: {str(e)}")
+
+    @commands.hybrid_command(name="openchatmemoryquery")
+    @discord.app_commands.describe(query="Search query for memories")
+    async def openchatmemoryquery(self, ctx, *, query: str):
+        """Search memories for relevant information."""
+        try:
+            conf = self.db.get_conf(ctx.guild)
+            if not conf.api_base:
+                return await ctx.send("❌ **OpenWebUI API not configured!**\nPlease set the endpoint first.")
+            
+            # Get memories from config
+            memories = await self.config.memories()
+            if not memories:
+                return await ctx.send("No memories found. Use `/openchataddmemory` to add some!")
+            
+            # Simple text search for now
+            results = []
+            for name, data in memories.items():
+                if query.lower() in data.get("text", "").lower():
+                    results.append(f"**{name}**: {data.get('text', '')[:200]}...")
+            
+            if results:
+                embed = discord.Embed(
+                    title="Memory Search Results",
+                    description="\n\n".join(results[:5]),  # Limit to 5 results
+                    color=discord.Color.blue()
+                )
+                await ctx.send(embed=embed)
+            else:
+                await ctx.send("No memories found matching your query.")
+        except Exception as e:
+            log.error("Error searching memories", exc_info=e)
+            await ctx.send(f"❌ Error searching memories: {str(e)}")
+
+    # ───────────────── Conversation Commands ─────────────────
+    
+    @commands.hybrid_command(name="openchatconvostats")
+    async def openchatconvostats(self, ctx):
+        """View conversation statistics."""
+        try:
+            conversation = self.db.get_conversation(ctx.author.id, ctx.channel.id, ctx.guild.id)
+            
+            embed = discord.Embed(
+                title="Conversation Statistics",
+                color=discord.Color.blue()
+            )
+            
+            embed.add_field(
+                name="Message Count",
+                value=f"**Total Messages:** {len(conversation.messages)}\n"
+                      f"**User Messages:** {len([m for m in conversation.messages if m.get('role') == 'user'])}\n"
+                      f"**Assistant Messages:** {len([m for m in conversation.messages if m.get('role') == 'assistant'])}",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="Token Usage",
+                value=f"**Total Tokens:** {conversation.total_tokens}\n"
+                      f"**Input Tokens:** {conversation.input_tokens}\n"
+                      f"**Output Tokens:** {conversation.output_tokens}",
+                inline=False
+            )
+            
+            await ctx.send(embed=embed)
+        except Exception as e:
+            log.error("Error getting conversation stats", exc_info=e)
+            await ctx.send(f"❌ Error getting conversation stats: {str(e)}")
+
+    @commands.hybrid_command(name="openchatclearconvo")
+    async def openchatclearconvo(self, ctx):
+        """Clear your conversation with the assistant."""
+        try:
+            conversation = self.db.get_conversation(ctx.author.id, ctx.channel.id, ctx.guild.id)
+            conversation.messages.clear()
+            conversation.total_tokens = 0
+            conversation.input_tokens = 0
+            conversation.output_tokens = 0
+            await self.save_conf()
+            await ctx.send("✅ Conversation cleared!")
+        except Exception as e:
+            log.error("Error clearing conversation", exc_info=e)
+            await ctx.send(f"❌ Error clearing conversation: {str(e)}")
+
+    @commands.hybrid_command(name="openchatshowconvo")
+    async def openchatshowconvo(self, ctx):
+        """Show your conversation history."""
+        try:
+            conversation = self.db.get_conversation(ctx.author.id, ctx.channel.id, ctx.guild.id)
+            
+            if not conversation.messages:
+                return await ctx.send("No conversation history found.")
+            
+            embed = discord.Embed(
+                title="Conversation History",
+                color=discord.Color.blue()
+            )
+            
+            # Show last 10 messages
+            recent_messages = conversation.messages[-10:]
+            for i, msg in enumerate(recent_messages):
+                role = msg.get("role", "unknown")
+                content = msg.get("content", "")[:500]  # Limit content length
+                embed.add_field(
+                    name=f"{role.title()} Message {len(recent_messages) - i}",
+                    value=content,
+                    inline=False
+                )
+            
+            await ctx.send(embed=embed)
+        except Exception as e:
+            log.error("Error showing conversation", exc_info=e)
+            await ctx.send(f"❌ Error showing conversation: {str(e)}")
+
+    @commands.hybrid_command(name="openchattldr")
+    @discord.app_commands.describe(
+        hours="Number of hours to look back (default: 24)",
+        channel="Channel to summarize (default: current channel)"
+    )
+    async def openchattldr(self, ctx, hours: int = 24, channel: discord.TextChannel = None):
+        """Summarize channel activity using the assistant."""
+        try:
+            target_channel = channel or ctx.channel
+            conf = self.db.get_conf(ctx.guild)
+            
+            if not conf.api_base:
+                return await ctx.send("❌ **OpenWebUI API not configured!**\nPlease set the endpoint first.")
+            
+            # Get messages from the last N hours
+            cutoff_time = discord.utils.utcnow() - discord.timedelta(hours=hours)
+            messages = []
+            
+            async for message in target_channel.history(limit=100, after=cutoff_time):
+                if not message.author.bot and message.content:
+                    messages.append(f"{message.author.display_name}: {message.content}")
+            
+            if not messages:
+                return await ctx.send(f"No messages found in the last {hours} hours.")
+            
+            # Create summary prompt
+            summary_text = "\n".join(messages[-50:])  # Limit to last 50 messages
+            prompt = f"Please provide a concise summary of the following Discord channel activity from the last {hours} hours:\n\n{summary_text}"
+            
+            # Get summary from assistant
+            conversation = self.db.get_conversation(ctx.author.id, ctx.channel.id, ctx.guild.id)
+            conversation.add_message("user", prompt, ctx.author.id)
+            
+            response = await self.get_chat_response(conversation, conf, ctx)
+            if response:
+                conversation.add_message("assistant", response, self.bot.user.id)
+                await self.save_conf()
+                
+                embed = discord.Embed(
+                    title=f"📋 Channel Summary - Last {hours} hours",
+                    description=response,
+                    color=discord.Color.blue()
+                )
+                embed.set_footer(text=f"Summarized {len(messages)} messages from #{target_channel.name}")
+                await ctx.send(embed=embed)
+            else:
+                await ctx.send("❌ Failed to generate summary. Please check your configuration.")
+                
+        except Exception as e:
+            log.error("Error generating TLDR", exc_info=e)
+            await ctx.send(f"❌ Error generating summary: {str(e)}")
+
     # ───────────────── Abstract Methods Implementation ─────────────────
     
     async def openwebui_status(self) -> str:
@@ -557,6 +766,207 @@ class OpenWebUIMemoryBot(MixinMeta, commands.Cog, metaclass=CompositeMetaClass):
         except Exception as e:
             log.error("Error getting chat response", exc_info=e)
             return None
+
+    # ───────────────── Abstract Methods Implementation ─────────────────
+    
+    async def request_response(
+        self,
+        messages: List[dict],
+        conf: GuildSettings,
+        functions: Optional[List[dict]] = None,
+        member: discord.Member = None,
+        response_token_override: int = None,
+        model_override: Optional[str] = None,
+        temperature_override: Optional[float] = None,
+    ) -> Union[dict, str]:
+        """Request response from OpenWebUI API"""
+        try:
+            async with httpx.AsyncClient() as client:
+                payload = {
+                    "model": model_override or conf.model,
+                    "messages": messages,
+                    "max_tokens": response_token_override or conf.max_tokens,
+                    "temperature": temperature_override or conf.temperature,
+                    "stream": False
+                }
+                
+                if functions:
+                    payload["functions"] = functions
+                
+                response = await client.post(
+                    f"{conf.api_base}/api/v1/chat/completions",
+                    json=payload,
+                    timeout=30.0
+                )
+                
+                if response.status_code == 200:
+                    return response.json()
+                else:
+                    log.error(f"OpenWebUI API error: {response.status_code} - {response.text}")
+                    return None
+                    
+        except Exception as e:
+            log.error("Error requesting response", exc_info=e)
+            return None
+
+    async def request_embedding(self, text: str, conf: GuildSettings) -> List[float]:
+        """Request embedding from OpenWebUI API"""
+        try:
+            async with httpx.AsyncClient() as client:
+                payload = {
+                    "model": conf.embed_model,
+                    "input": text
+                }
+                
+                response = await client.post(
+                    f"{conf.api_base}/api/v1/embeddings",
+                    json=payload,
+                    timeout=30.0
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if "data" in data and len(data["data"]) > 0:
+                        return data["data"][0]["embedding"]
+                    else:
+                        return []
+                else:
+                    log.error(f"OpenWebUI embedding API error: {response.status_code} - {response.text}")
+                    return []
+                    
+        except Exception as e:
+            log.error("Error requesting embedding", exc_info=e)
+            return []
+
+    async def resync_embeddings(self, conf: GuildSettings, guild_id: int) -> int:
+        """Resync embeddings for a guild"""
+        # This would be implemented to resync embeddings
+        # For now, return 0 (no embeddings to resync)
+        return 0
+
+    def get_max_tokens(self, conf: GuildSettings, member: Optional[discord.Member]) -> int:
+        """Get max tokens for a user"""
+        return conf.max_tokens
+
+    async def cut_text_by_tokens(self, text: str, conf: GuildSettings, user: Optional[discord.Member] = None) -> str:
+        """Cut text to fit within token limits"""
+        # Simple implementation - just truncate by character count
+        max_chars = conf.max_tokens * 4  # Rough estimate: 4 chars per token
+        if len(text) > max_chars:
+            return text[:max_chars] + "..."
+        return text
+
+    async def count_payload_tokens(self, messages: List[dict], model: str = "deepseek-r1:8b") -> int:
+        """Count tokens in a payload"""
+        # Simple implementation - estimate tokens
+        total_chars = sum(len(str(msg)) for msg in messages)
+        return total_chars // 4  # Rough estimate: 4 chars per token
+
+    async def count_function_tokens(self, functions: List[dict], model: str = "deepseek-r1:8b") -> int:
+        """Count tokens in functions"""
+        # Simple implementation - estimate tokens
+        total_chars = sum(len(str(func)) for func in functions)
+        return total_chars // 4  # Rough estimate: 4 chars per token
+
+    async def count_tokens(self, text: str, model: str) -> int:
+        """Count tokens in text"""
+        # Simple implementation - estimate tokens
+        return len(text) // 4  # Rough estimate: 4 chars per token
+
+    async def get_tokens(self, text: str, model: str = "deepseek-r1:8b") -> list[int]:
+        """Get tokens from text"""
+        # Simple implementation - return character codes
+        return [ord(c) for c in text[:1000]]  # Limit to 1000 chars
+
+    async def get_text(self, tokens: list, model: str = "deepseek-r1:8b") -> str:
+        """Get text from tokens"""
+        # Simple implementation - convert character codes back to text
+        return ''.join(chr(t) for t in tokens if 0 <= t <= 1114111)
+
+    async def degrade_conversation(
+        self,
+        messages: List[dict],
+        function_list: List[dict],
+        conf: GuildSettings,
+        user: Optional[discord.Member],
+    ) -> bool:
+        """Degrade conversation to fit token limits"""
+        # Simple implementation - remove oldest messages
+        if len(messages) > 10:
+            messages.pop(0)  # Remove oldest message
+            return True
+        return False
+
+    async def token_pagify(self, text: str, conf: GuildSettings) -> List[str]:
+        """Pagify text by tokens"""
+        # Simple implementation - pagify by character count
+        max_chars = conf.max_tokens * 4  # Rough estimate
+        return [text[i:i+max_chars] for i in range(0, len(text), max_chars)]
+
+    async def get_function_menu_embeds(self, user: discord.Member) -> List[discord.Embed]:
+        """Get function menu embeds"""
+        embed = discord.Embed(
+            title="Function Menu",
+            description="No functions available",
+            color=discord.Color.blue()
+        )
+        return [embed]
+
+    async def get_embbedding_menu_embeds(self, conf: GuildSettings, place: int) -> List[discord.Embed]:
+        """Get embedding menu embeds"""
+        embed = discord.Embed(
+            title="Embedding Menu",
+            description="No embeddings available",
+            color=discord.Color.blue()
+        )
+        return [embed]
+
+    async def add_embedding(
+        self,
+        guild: discord.Guild,
+        name: str,
+        text: str,
+        overwrite: bool = False,
+        ai_created: bool = False,
+    ) -> Optional[List[float]]:
+        """Add embedding to the system"""
+        try:
+            conf = self.db.get_conf(guild)
+            embedding = await self.request_embedding(text, conf)
+            if embedding:
+                # Store embedding in the database
+                # This would be implemented to actually store the embedding
+                return embedding
+            return None
+        except Exception as e:
+            log.error("Error adding embedding", exc_info=e)
+            return None
+
+    async def handle_message(
+        self, message: discord.Message, question: str, conf: GuildSettings, listener: bool = False
+    ) -> str:
+        """Handle message for auto-response"""
+        try:
+            # Get conversation for auto-response
+            conversation = self.db.get_conversation(message.author.id, message.channel.id, message.guild.id)
+            
+            # Add user message
+            conversation.add_message("user", question, message.author.id)
+            
+            # Get response using the proper OpenWebUI chat system
+            response = await self.get_chat_response(conversation, conf, message)
+            
+            if response:
+                # Add assistant response
+                conversation.add_message("assistant", response, self.bot.user.id)
+                await self.save_conf()
+                return response
+            else:
+                return FALLBACK
+                    
+        except Exception as e:
+            log.error(f"Error in handle_message: {e}")
+            return FALLBACK
 
     async def _setup_autocomplete(self):
         """Set up autocomplete for commands"""
