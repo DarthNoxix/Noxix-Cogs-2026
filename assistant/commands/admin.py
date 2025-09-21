@@ -2127,6 +2127,144 @@ class Admin(MixinMeta):
         await ctx.send(_("Cog has been restored!"))
         await self.save_conf()
 
+    @assistant.command(name="exportall")
+    @commands.is_owner()
+    async def export_all_data(self, ctx: commands.Context):
+        """
+        Export ALL assistant data including conversations, settings, and embeddings
+        
+        This creates a complete backup that can be imported on another bot instance.
+        Includes all server configurations, embeddings, conversations, and global settings.
+        """
+        async with ctx.typing():
+            def _dump_all():
+                # Export everything including conversations
+                return self.db.model_dump()
+
+            dump = await asyncio.to_thread(_dump_all)
+            json_data = orjson.dumps(dump, option=orjson.OPT_INDENT_2)
+
+            buffer = BytesIO(json_data)
+            buffer.name = f"Assistant_Complete_Export_{int(datetime.now().timestamp())}.json"
+            buffer.seek(0)
+            file = discord.File(buffer)
+            
+            try:
+                await ctx.send(_("Here is your complete assistant export!"), file=file)
+                return
+            except discord.HTTPException:
+                await ctx.send(_("File too large, attempting to compress..."))
+
+            def zip_file() -> discord.File:
+                zip_buffer = BytesIO()
+                zip_buffer.name = f"Assistant_Complete_Export_{int(datetime.now().timestamp())}.zip"
+                with ZipFile(zip_buffer, "w", compression=ZIP_DEFLATED, compresslevel=9) as arc:
+                    arc.writestr(
+                        "assistant_complete_export.json",
+                        json_data,
+                        compress_type=ZIP_DEFLATED,
+                        compresslevel=9,
+                    )
+                zip_buffer.seek(0)
+                file = discord.File(zip_buffer)
+                return file
+
+            file = await asyncio.to_thread(zip_file)
+            try:
+                await ctx.send(_("Here is your complete assistant export (compressed)!"), file=file)
+                return
+            except discord.HTTPException:
+                await ctx.send(_("File is still too large even with compression!"))
+
+    @assistant.command(name="importall")
+    @commands.is_owner()
+    async def import_all_data(self, ctx: commands.Context):
+        """
+        Import ALL assistant data from a complete export
+        
+        This will completely replace all current assistant data with the imported data.
+        Use with caution as this will overwrite all existing settings, embeddings, and conversations.
+        """
+        attachments = get_attachments(ctx.message)
+        if not attachments:
+            return await ctx.send(
+                _("You must attach a **.json** or **.zip** file to this command or reference a message that has one!")
+            )
+        
+        if len(attachments) > 1:
+            return await ctx.send(_("Please only attach one file to import from!"))
+            
+        attachment = attachments[0]
+        
+        async with ctx.typing():
+            try:
+                file_bytes = await attachment.read()
+                
+                # Handle zip files
+                if attachment.filename.lower().endswith('.zip'):
+                    with ZipFile(BytesIO(file_bytes), 'r') as zip_file:
+                        # Look for the JSON file in the zip
+                        json_files = [name for name in zip_file.namelist() if name.endswith('.json')]
+                        if not json_files:
+                            return await ctx.send(_("No JSON file found in the zip archive!"))
+                        
+                        # Use the first JSON file found
+                        json_data = zip_file.read(json_files[0])
+                else:
+                    json_data = file_bytes
+                
+                # Parse the JSON data
+                try:
+                    data = orjson.loads(json_data)
+                except orjson.JSONDecodeError as e:
+                    return await ctx.send(_("Invalid JSON file: {}").format(str(e)))
+                
+                # Validate and import the data
+                try:
+                    # Create a temporary DB instance to validate the data
+                    temp_db = await asyncio.to_thread(DB.model_validate, data)
+                    
+                    # If validation succeeds, replace the current DB
+                    self.db = temp_db
+                    
+                    # Sync all embeddings for all guilds
+                    for guild_id, conf in self.db.configs.items():
+                        await asyncio.to_thread(conf.sync_embeddings, guild_id)
+                    
+                    await self.save_conf()
+                    
+                    # Count what was imported
+                    guild_count = len(self.db.configs)
+                    embedding_count = sum(len(conf.embeddings) for conf in self.db.configs.values())
+                    conversation_count = len(self.db.conversations)
+                    
+                    embed = discord.Embed(
+                        title=_("Import Successful!"),
+                        color=discord.Color.green(),
+                        description=_(
+                            "Successfully imported all assistant data:\n"
+                            "• **{}** server configurations\n"
+                            "• **{}** embeddings\n"
+                            "• **{}** conversations\n"
+                            "• Global settings and custom functions"
+                        ).format(
+                            humanize_number(guild_count),
+                            humanize_number(embedding_count), 
+                            humanize_number(conversation_count)
+                        )
+                    )
+                    await ctx.send(embed=embed)
+                    
+                except ValidationError as e:
+                    return await ctx.send(_("Invalid data format in the import file: {}").format(str(e)))
+                except Exception as e:
+                    log.error("Failed to import assistant data", exc_info=e)
+                    return await ctx.send(_("An error occurred while importing the data: {}").format(str(e)))
+                    
+            except Exception as e:
+                log.error("Failed to read import file", exc_info=e)
+                await ctx.send(_("Failed to read the import file. Please make sure it's a valid export file."))
+
     @assistant.command(name="resetglobalconversations")
     @commands.is_owner()
     async def wipe_global_conversations(self, ctx: commands.Context, yes_or_no: bool):
