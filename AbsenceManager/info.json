@@ -1,0 +1,25 @@
+{
+  "author": ["Noxix"],
+  "description": "A comprehensive absence management system that automatically maintains a central embed showing all current absences with beautiful UI components and automatic updates.",
+  "disabled": false,
+  "end_user_data_statement": "This cog stores absence records and configuration data for your server. Absence data includes user IDs, absence reasons, and return dates. This data is stored locally and can be deleted by server administrators.",
+  "hidden": false,
+  "install_msg": "AbsenceManager cog loaded! Use `[p]absence setup` to get started.",
+  "min_bot_version": "3.5.0",
+  "min_python_version": [3, 10, 0],
+  "permissions": ["read_messages", "send_messages", "embed_links", "manage_messages"],
+  "required_cogs": {},
+  "requirements": [
+    "discord.py>=2.0.0"
+  ],
+  "short": "Centralized absence management with automatic embed updates",
+  "tags": [
+    "utility",
+    "moderation",
+    "staff",
+    "absence",
+    "management",
+    "embed"
+  ],
+  "type": "COG"
+}

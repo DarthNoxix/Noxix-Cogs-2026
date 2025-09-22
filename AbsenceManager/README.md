@@ -1,0 +1,83 @@
+# AbsenceManager Cog
+
+A comprehensive absence management system for Discord servers that automatically maintains a central embed showing all current staff absences with beautiful UI components and automatic updates.
+
+## Features
+
+- 🎯 **Centralized Management**: Single embed that automatically updates when absences change
+- 🎨 **Beautiful UI**: Interactive buttons, modals, and well-formatted embeds
+- ⚡ **Automatic Updates**: Embed refreshes automatically when absences are added/removed
+- 🔄 **Auto-cleanup**: Automatically removes expired absences (configurable)
+- 🛡️ **Role-based Access**: Configurable authorized roles for absence management
+- 📅 **Flexible Duration**: Support for specific dates, relative durations, and indefinite absences
+- 🎭 **User-friendly**: Easy-to-use modals and buttons for all operations
+
+## Setup
+
+1. Load the cog: `[p]load AbsenceManager`
+2. Set up the system: `[p]absence setup [channel]`
+3. Configure authorized roles: `[p]absence role @RoleName`
+4. Start managing absences!
+
+## Commands
+
+### Setup Commands
+- `[p]absence setup [channel]` - Set up the absence management system
+- `[p]absence disable` - Disable the absence management system
+- `[p]absence config` - View and modify configuration
+
+### Management Commands
+- `[p]absence add @user` - Add an absence for a user (opens modal)
+- `[p]absence remove @user` - Remove an absence for a user
+- `[p]absence list` - View all current absences
+- `[p]absence role @role` - Add/remove authorized roles
+
+## Usage Examples
+
+### Adding Absences
+When you use `[p]absence add @user`, a modal will open where you can:
+- Enter a reason (optional)
+- Specify duration using:
+  - `until 2024-01-15` (specific date)
+  - `for 5 days` (relative duration)
+  - `for 2 weeks` (weeks)
+  - `for 1 month` (months)
+  - `indefinite` (no end date)
+
+### Interactive Buttons
+The absence embed includes buttons for:
+- **➕ Add Absence**: Opens user selection modal
+- **➖ Remove Absence**: Opens user selection modal  
+- **🔄 Refresh**: Manually refresh the embed
+
+## Configuration Options
+
+- **Authorized Roles**: Control who can manage absences
+- **Auto-remove Expired**: Automatically remove expired absences
+- **Grace Period**: Hours to wait before removing expired absences
+- **Embed Title**: Customize the embed title
+- **Show Avatars**: Include user avatars in the embed
+
+## Permissions
+
+- **Administrators**: Full access to all commands and configuration
+- **Authorized Roles**: Can add/remove absences and use interactive buttons
+- **Everyone**: Can view the absence embed
+
+## Data Storage
+
+The cog stores:
+- Absence records (user ID, reason, dates, etc.)
+- Guild configuration (channel, roles, settings)
+- All data is stored locally and can be deleted by administrators
+
+## Technical Details
+
+- **Auto-cleanup**: Runs every hour to remove expired absences
+- **Embed Updates**: Automatically triggered when absences change
+- **Error Handling**: Comprehensive error handling with user-friendly messages
+- **Performance**: Efficient data storage and retrieval
+
+## Support
+
+For issues or feature requests, please contact the cog author or create an issue in the repository.
