@@ -27,7 +27,7 @@ class AbsenceManager(commands.Cog):
             "channel_id": None,
             "message_id": None,
             "authorized_roles": [],
-            "embed_title": "📋 Staff Absences",
+            "embed_title": "✨ Staff Absences ✨",
             "embed_color": 0x3498db,
             "show_avatar": True,
             "auto_remove_expired": True,
@@ -121,51 +121,86 @@ class AbsenceManager(commands.Cog):
         # Sort by start date (newest first)
         guild_absences.sort(key=lambda x: x[0].get("start_date", ""), reverse=True)
         
+        # Create beautiful embed with gradient-like colors
         embed = discord.Embed(
-            title=settings["embed_title"],
+            title=f"✨ {settings['embed_title']} ✨",
             color=settings["embed_color"],
             timestamp=current_time
         )
         
+        # Add beautiful header
+        embed.set_author(
+            name="📊 Staff Management System",
+            icon_url=guild.icon.url if guild.icon else None
+        )
+        
         if not guild_absences:
-            embed.description = "🎉 **No current absences!**\nAll staff members are available."
-            embed.set_footer(text="Last updated")
+            embed.description = (
+                "🎉 **All Clear!** 🎉\n\n"
+                "✨ All staff members are currently available and ready to assist! ✨\n"
+                "🌟 No active absences at this time. 🌟"
+            )
+            embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/✅.png")
+            embed.set_footer(
+                text="🔄 Auto-updated • 💎 Premium Management System",
+                icon_url="https://cdn.discordapp.com/emojis/🔄.png"
+            )
             return embed
         
-        description_parts = []
+        # Create beautiful absence entries
         for i, (absence_data, user) in enumerate(guild_absences, 1):
-            # Format user mention with avatar if enabled
-            if settings["show_avatar"]:
-                user_display = f"{user.display_avatar.url} **{user.display_name}**"
-            else:
-                user_display = f"**{user.display_name}**"
-            
-            # Format absence period
+            # Format absence period with beautiful styling
             start_date = datetime.fromisoformat(absence_data["start_date"]) if absence_data.get("start_date") else None
             end_date = datetime.fromisoformat(absence_data["end_date"]) if absence_data.get("end_date") else None
             
+            # Create status emoji and color
             if absence_data.get("is_indefinite"):
-                period = "**Indefinite**"
+                status_emoji = "♾️"
+                status_text = "**Indefinite Absence**"
+                status_color = "🟡"
             elif end_date:
                 if current_time > end_date:
-                    period = f"**Expired** (was until {end_date.strftime('%Y-%m-%d')})"
+                    status_emoji = "⏰"
+                    status_text = f"**Expired** (was until {end_date.strftime('%B %d, %Y')})"
+                    status_color = "🔴"
                 else:
                     time_left = humanize_timedelta(timedelta=end_date - current_time)
-                    period = f"Until **{end_date.strftime('%Y-%m-%d')}** ({time_left} left)"
+                    status_emoji = "⏳"
+                    status_text = f"**Until {end_date.strftime('%B %d, %Y')}** ({time_left} remaining)"
+                    status_color = "🟠"
             else:
-                period = "**Unknown duration**"
+                status_emoji = "❓"
+                status_text = "**Unknown Duration**"
+                status_color = "⚪"
+            
+            # Create beautiful field
+            field_name = f"{status_color} {user.display_name}"
+            field_value = f"{status_emoji} {status_text}"
             
             # Add reason if provided
             reason = absence_data.get("reason", "")
             if reason:
-                reason_text = f"\n*{reason}*"
-            else:
-                reason_text = ""
+                field_value += f"\n💭 *{reason}*"
             
-            description_parts.append(f"{i}. {user_display}\n   {period}{reason_text}")
+            # Add start date
+            if start_date:
+                field_value += f"\n📅 Started: {start_date.strftime('%B %d, %Y at %I:%M %p')}"
+            
+            # Add user avatar as field icon
+            embed.add_field(
+                name=field_name,
+                value=field_value,
+                inline=False
+            )
         
-        embed.description = "\n\n".join(description_parts)
-        embed.set_footer(text=f"Last updated • {len(guild_absences)} absence(s)")
+        # Add beautiful footer with statistics
+        embed.set_footer(
+            text=f"📊 {len(guild_absences)} active absence{'s' if len(guild_absences) != 1 else ''} • 🔄 Auto-updated • 💎 Premium Management",
+            icon_url="https://cdn.discordapp.com/emojis/📊.png"
+        )
+        
+        # Add thumbnail
+        embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/📋.png")
         
         return embed
 
@@ -222,14 +257,20 @@ class AbsenceManager(commands.Cog):
         await self._update_absence_embed(ctx.guild)
         
         embed = discord.Embed(
-            title="✅ Absence Manager Setup Complete",
-            description=f"Absence management has been set up in {channel.mention}.\n\n"
-                       f"**Next steps:**\n"
+            title="✨ Absence Manager Setup Complete! ✨",
+            description=f"🎉 **Absence management has been successfully set up!** 🎉\n\n"
+                       f"📍 **Channel:** {channel.mention}\n"
+                       f"🔄 **Auto-updates:** Enabled\n"
+                       f"💎 **Premium features:** Active\n\n"
+                       f"**🚀 Next Steps:**\n"
                        f"• Use `{ctx.prefix}absence role` to set authorized roles\n"
                        f"• Use `{ctx.prefix}absence add` to add absences\n"
-                       f"• The embed will automatically update when changes are made",
+                       f"• The embed will automatically update when changes are made\n\n"
+                       f"🌟 **Your staff absence management system is now live!** 🌟",
             color=0x2ecc71
         )
+        embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/✅.png")
+        embed.set_footer(text="💎 Premium Absence Management System")
         await ctx.send(embed=embed)
 
     @absence.command(name="disable")
@@ -349,41 +390,59 @@ class AbsenceManager(commands.Cog):
         settings = await self.config.guild(ctx.guild).all()
         
         embed = discord.Embed(
-            title="⚙️ Absence Manager Configuration",
+            title="⚙️ Absence Manager Configuration ⚙️",
+            description="🔧 **Current system settings and status** 🔧",
             color=0x3498db
         )
         
+        # Status field with beautiful formatting
+        status_emoji = "✅" if settings["enabled"] else "❌"
+        status_text = "**Enabled**" if settings["enabled"] else "**Disabled**"
         embed.add_field(
-            name="Status",
-            value="✅ Enabled" if settings["enabled"] else "❌ Disabled",
+            name=f"{status_emoji} System Status",
+            value=status_text,
             inline=True
         )
         
+        # Channel field
         channel = ctx.guild.get_channel(settings["channel_id"]) if settings["channel_id"] else None
+        channel_text = channel.mention if channel else "**Not configured**"
         embed.add_field(
-            name="Channel",
-            value=channel.mention if channel else "Not set",
+            name="📍 Absence Channel",
+            value=channel_text,
             inline=True
         )
         
+        # Authorized roles field
         roles = await self.config.guild(ctx.guild).authorized_roles()
         role_mentions = [ctx.guild.get_role(role_id).mention for role_id in roles if ctx.guild.get_role(role_id)]
+        roles_text = "\n".join(role_mentions) if role_mentions else "**Administrators only**"
         embed.add_field(
-            name="Authorized Roles",
-            value="\n".join(role_mentions) if role_mentions else "Administrators only",
+            name="🛡️ Authorized Roles",
+            value=roles_text,
             inline=False
         )
         
+        # Auto-remove field
+        auto_remove_emoji = "✅" if settings["auto_remove_expired"] else "❌"
+        auto_remove_text = "**Enabled**" if settings["auto_remove_expired"] else "**Disabled**"
         embed.add_field(
-            name="Auto-remove Expired",
-            value="✅ Yes" if settings["auto_remove_expired"] else "❌ No",
+            name=f"{auto_remove_emoji} Auto-remove Expired",
+            value=auto_remove_text,
             inline=True
         )
         
+        # Grace period field
         embed.add_field(
-            name="Grace Period",
-            value=f"{settings['expired_grace_period']} hours",
+            name="⏰ Grace Period",
+            value=f"**{settings['expired_grace_period']} hours**",
             inline=True
+        )
+        
+        # Add beautiful footer
+        embed.set_footer(
+            text="💎 Premium Absence Management System • Use buttons below to modify settings",
+            icon_url="https://cdn.discordapp.com/emojis/⚙️.png"
         )
         
         view = ConfigView(self, ctx.guild)
@@ -440,16 +499,16 @@ class AbsenceManager(commands.Cog):
 
 
 class AbsenceAddModal(discord.ui.Modal):
-    """Modal for adding new absences."""
+    """Beautiful modal for adding new absences."""
     
     def __init__(self, cog: AbsenceManager, user: discord.Member, initial_reason: str = ""):
         self.cog = cog
         self.user = user
-        super().__init__(title=f"Add Absence - {user.display_name}")
+        super().__init__(title=f"✨ Add Absence - {user.display_name} ✨")
         
         self.reason_input = discord.ui.TextInput(
-            label="Reason (optional)",
-            placeholder="Enter the reason for absence...",
+            label="💭 Reason (Optional)",
+            placeholder="Enter a detailed reason for the absence...",
             default=initial_reason,
             required=False,
             max_length=1000,
@@ -458,7 +517,7 @@ class AbsenceAddModal(discord.ui.Modal):
         self.add_item(self.reason_input)
         
         self.duration_input = discord.ui.TextInput(
-            label="Duration",
+            label="📅 Duration",
             placeholder="Examples: 'until 2024-01-15', 'for 5 days', 'indefinite'",
             required=True,
             max_length=100
@@ -523,10 +582,15 @@ class AbsenceAddModal(discord.ui.Modal):
             )
             
             embed = discord.Embed(
-                title="✅ Absence Added",
-                description=f"Absence for {self.user.mention} has been added successfully.",
+                title="✨ Absence Added Successfully! ✨",
+                description=f"🎉 **{self.user.display_name}** has been marked as absent.\n\n"
+                           f"📅 **Duration:** {duration}\n"
+                           f"💭 **Reason:** {reason if reason else 'No reason provided'}\n\n"
+                           f"🔄 The absence list has been automatically updated!",
                 color=0x2ecc71
             )
+            embed.set_thumbnail(url=self.user.display_avatar.url)
+            embed.set_footer(text="💎 Premium Absence Management System")
             await interaction.followup.send(embed=embed, ephemeral=True)
             
         except Exception as e:
@@ -546,9 +610,14 @@ class AbsenceAddView(discord.ui.View):
         self.initial_reason = initial_reason
         super().__init__(timeout=300)
 
-    @discord.ui.button(label="Open Absence Form", style=discord.ButtonStyle.primary, emoji="📝")
+    @discord.ui.button(
+        label="✨ Open Absence Form", 
+        style=discord.ButtonStyle.primary, 
+        emoji="📝",
+        custom_id="open_absence_form"
+    )
     async def open_modal_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Button to open the absence add modal."""
+        """Beautiful button to open the absence add modal."""
         if not await self.cog._check_authorization(interaction):
             return
             
@@ -562,39 +631,62 @@ class AbsenceAddView(discord.ui.View):
 
 
 class AbsenceManagementView(discord.ui.View):
-    """View with buttons for absence management."""
+    """View with beautiful buttons for absence management."""
     
     def __init__(self, cog: AbsenceManager, guild: discord.Guild):
         self.cog = cog
         self.guild = guild
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Add Absence", style=discord.ButtonStyle.primary, emoji="➕")
+    @discord.ui.button(
+        label="✨ Add Absence", 
+        style=discord.ButtonStyle.primary, 
+        emoji="➕",
+        custom_id="absence_add_button"
+    )
     async def add_absence_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Button to add a new absence."""
+        """Beautiful button to add a new absence."""
         if not await self.cog._check_authorization(interaction):
             return
             
         # Create user selection modal
-        modal = UserSelectModal(self.cog, "Add Absence")
+        modal = UserSelectModal(self.cog, "✨ Add Absence")
         await interaction.response.send_modal(modal)
 
-    @discord.ui.button(label="Remove Absence", style=discord.ButtonStyle.danger, emoji="➖")
+    @discord.ui.button(
+        label="🗑️ Remove Absence", 
+        style=discord.ButtonStyle.danger, 
+        emoji="➖",
+        custom_id="absence_remove_button"
+    )
     async def remove_absence_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Button to remove an absence."""
+        """Beautiful button to remove an absence."""
         if not await self.cog._check_authorization(interaction):
             return
             
         # Create user selection modal
-        modal = UserSelectModal(self.cog, "Remove Absence")
+        modal = UserSelectModal(self.cog, "🗑️ Remove Absence")
         await interaction.response.send_modal(modal)
 
-    @discord.ui.button(label="Refresh", style=discord.ButtonStyle.secondary, emoji="🔄")
+    @discord.ui.button(
+        label="🔄 Refresh", 
+        style=discord.ButtonStyle.secondary, 
+        emoji="✨",
+        custom_id="absence_refresh_button"
+    )
     async def refresh_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Button to refresh the embed."""
+        """Beautiful button to refresh the embed."""
         await interaction.response.defer()
         await self.cog._update_absence_embed(self.guild)
-        await interaction.followup.send("✅ Embed refreshed!", ephemeral=True)
+        
+        # Create beautiful refresh confirmation
+        embed = discord.Embed(
+            title="✨ Embed Refreshed! ✨",
+            description="🔄 The absence list has been updated with the latest information.",
+            color=0x2ecc71
+        )
+        embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/🔄.png")
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 class UserSelectModal(discord.ui.Modal):
@@ -685,40 +777,59 @@ class UserSelectModal(discord.ui.Modal):
 
 
 class ConfigView(discord.ui.View):
-    """View for configuration options."""
+    """Beautiful view for configuration options."""
     
     def __init__(self, cog: AbsenceManager, guild: discord.Guild):
         self.cog = cog
         self.guild = guild
         super().__init__(timeout=300)
 
-    @discord.ui.button(label="Toggle Auto-remove", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(
+        label="🔄 Toggle Auto-remove", 
+        style=discord.ButtonStyle.secondary,
+        emoji="⚙️",
+        custom_id="toggle_auto_remove"
+    )
     async def toggle_auto_remove(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Toggle auto-removal of expired absences."""
+        """Beautiful button to toggle auto-removal of expired absences."""
         if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message(
-                "❌ You need administrator permissions to modify configuration.",
-                ephemeral=True
+            embed = discord.Embed(
+                title="❌ Access Denied",
+                description="🔒 You need administrator permissions to modify configuration.",
+                color=0xe74c3c
             )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
             
         current = await self.cog.config.guild(self.guild).auto_remove_expired()
         await self.cog.config.guild(self.guild).auto_remove_expired.set(not current)
         
         status = "enabled" if not current else "disabled"
-        await interaction.response.send_message(
-            f"✅ Auto-removal of expired absences has been {status}.",
-            ephemeral=True
+        status_emoji = "✅" if not current else "❌"
+        
+        embed = discord.Embed(
+            title=f"{status_emoji} Auto-removal Updated",
+            description=f"🔄 Auto-removal of expired absences has been **{status}**.",
+            color=0x2ecc71 if not current else 0xe74c3c
         )
+        embed.set_footer(text="💎 Premium Absence Management System")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @discord.ui.button(label="Change Title", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(
+        label="✨ Change Title", 
+        style=discord.ButtonStyle.secondary,
+        emoji="📝",
+        custom_id="change_title"
+    )
     async def change_title(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Change the embed title."""
+        """Beautiful button to change the embed title."""
         if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message(
-                "❌ You need administrator permissions to modify configuration.",
-                ephemeral=True
+            embed = discord.Embed(
+                title="❌ Access Denied",
+                description="🔒 You need administrator permissions to modify configuration.",
+                color=0xe74c3c
             )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
             
         modal = TitleChangeModal(self.cog, self.guild)
@@ -726,16 +837,16 @@ class ConfigView(discord.ui.View):
 
 
 class TitleChangeModal(discord.ui.Modal):
-    """Modal for changing the embed title."""
+    """Beautiful modal for changing the embed title."""
     
     def __init__(self, cog: AbsenceManager, guild: discord.Guild):
         self.cog = cog
         self.guild = guild
-        super().__init__(title="Change Embed Title")
+        super().__init__(title="✨ Change Embed Title ✨")
         
         self.title_input = discord.ui.TextInput(
-            label="New Title",
-            placeholder="Enter the new embed title...",
+            label="📝 New Title",
+            placeholder="Enter a beautiful new embed title...",
             required=True,
             max_length=100
         )
@@ -750,8 +861,12 @@ class TitleChangeModal(discord.ui.Modal):
         await self.cog._update_absence_embed(self.guild)
         
         embed = discord.Embed(
-            title="✅ Title Updated",
-            description=f"Embed title has been changed to: **{new_title}**",
+            title="✨ Title Updated Successfully! ✨",
+            description=f"🎉 **Embed title has been changed to:**\n\n"
+                       f"📝 **{new_title}**\n\n"
+                       f"🔄 The absence embed has been automatically updated!",
             color=0x2ecc71
         )
-        await interaction.followup.send(embed=embed)
+        embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/📝.png")
+        embed.set_footer(text="💎 Premium Absence Management System")
+        await interaction.followup.send(embed=embed, ephemeral=True)

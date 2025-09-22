@@ -5,12 +5,14 @@ A comprehensive absence management system for Discord servers that automatically
 ## Features
 
 - 🎯 **Centralized Management**: Single embed that automatically updates when absences change
-- 🎨 **Beautiful UI**: Interactive buttons, modals, and well-formatted embeds
+- ✨ **Beautiful UI**: Stunning embeds with emojis, colors, and professional formatting
+- 🎨 **Interactive Components**: Beautiful buttons, modals, and user-friendly interfaces
 - ⚡ **Automatic Updates**: Embed refreshes automatically when absences are added/removed
 - 🔄 **Auto-cleanup**: Automatically removes expired absences (configurable)
 - 🛡️ **Role-based Access**: Configurable authorized roles for absence management
 - 📅 **Flexible Duration**: Support for specific dates, relative durations, and indefinite absences
 - 🎭 **User-friendly**: Easy-to-use modals and buttons for all operations
+- 💎 **Premium Design**: Professional appearance with beautiful formatting and emojis
 
 ## Setup
 
