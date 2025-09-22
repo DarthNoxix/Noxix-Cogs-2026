@@ -10,6 +10,7 @@
     "chromadb",
     "numpy",
     "rank-bm25",
+    "aiofiles",
     "pydantic",
     "orjson"
   ],

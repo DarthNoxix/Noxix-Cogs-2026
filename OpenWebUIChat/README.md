@@ -1,15 +1,45 @@
-# OpenWebUI Chat Bot
+# OpenWebUI Chat Bot - Advanced AI Assistant
 
-A modern Discord bot cog that integrates with OpenWebUI to provide AI chat with embeds, modals, and optional memory/knowledge base.
+A comprehensive Discord bot cog that integrates with OpenWebUI to provide an advanced AI assistant with memory, knowledge bases, tool integration, and intelligent conversation management.
 
-## 🚀 Features
+## 🚀 **NEW: Advanced Features Implemented**
 
-- **Modern Embeds**: AI responses are delivered as sleek Discord embeds with auto-chunking
-- **Slash + Hybrid Commands**: Use slash or text commands everywhere
-- **Modals for Long Prompts**: Open a modal to paste long requests (`/llmmodal`)
-- **Auto-Reply Channels**: Set channels where the bot auto-answers messages
-- **Optional Memory System**: Store and retrieve knowledge using embeddings (hybrid retrieval)
-- **Think-Filter**: Automatically removes `<think>` or chain-of-thought leakage from outputs
+### **🧠 Per-User Memory Profiles**
+- **Short-term conversation window** with automatic TTL management
+- **Long-term user profiles** with preferences and task logs
+- **Personalized responses** based on user history and preferences
+- **Memory decay system** that archives valuable memories automatically
+
+### **📚 Per-Guild Knowledge Bases**
+- **Server FAQs** with semantic search and automatic retrieval
+- **House Rules** management with scoped access
+- **Project Documentation** with structured storage
+- **Export/Import** functionality for knowledge base backup
+- **Statistics dashboard** with usage analytics
+
+### **🔧 Multi-Store Embeddings**
+- **Provider Selection**: OpenWebUI, Ollama, FAISS, Chroma, PGVector
+- **Automatic Fallback** to OpenWebUI if other providers fail
+- **Embedding Caching** to reduce API calls and improve performance
+- **Hot-swappable providers** with runtime configuration
+
+### **⚡ Message-Aware System Prompts**
+- **Context Detection**: Automatically detects channel type, threads, voice channels
+- **Dynamic Prompting**: Adjusts responses based on message characteristics
+- **Persona Integration**: Works with all persona types (Alicent, Court Scribe, etc.)
+- **Response Modes**: Show work, snippet mode, thread mode integration
+
+### **🛠️ Tool-Calling Layer with Allowlists**
+- **Guild-Level Controls**: Manage tool permissions per server
+- **Channel-Level Controls**: Fine-grained tool access per channel
+- **Tool Categories**: Web search, code linting, image generation, math solving
+- **Permission System**: Hierarchical allowlists with inheritance
+
+### **⏰ Memory TTLs & Decay**
+- **Auto-Archiving**: Valuable memories are archived instead of deleted
+- **Memory Decay**: Rarely accessed memories get shorter TTLs
+- **Background Cleanup**: Hourly maintenance with intelligent archiving
+- **Long-term Storage**: SQLite database for persistent memory management
 
 ## 📋 Requirements
 
@@ -17,6 +47,7 @@ A modern Discord bot cog that integrates with OpenWebUI to provide AI chat with 
 - `httpx` - HTTP client for OpenWebUI API calls
 - `numpy` - Numerical computations for embeddings
 - `rank-bm25` - BM25 sparse retrieval algorithm
+- `aiofiles` - Async file operations for data persistence
 
 ### OpenWebUI Setup
 1. Install and run OpenWebUI
@@ -28,7 +59,7 @@ A modern Discord bot cog that integrates with OpenWebUI to provide AI chat with 
 1. **Copy the cog** to your Red-DiscordBot cogs directory
 2. **Install dependencies**:
    ```bash
-   pip install httpx numpy rank-bm25
+   pip install httpx numpy rank-bm25 aiofiles
    ```
 3. **Load the cog**:
    ```
@@ -54,27 +85,100 @@ A modern Discord bot cog that integrates with OpenWebUI to provide AI chat with 
    [p]setopenwebui embedmodel bge-large-en-v1.5
    ```
 
-4. **Start chatting**:
+4. **Set embedding provider**:
+   ```
+   [p]setopenwebui embedprovider openwebui
+   [p]setopenwebui embedproviders  # List available providers
+   ```
+
+5. **Start chatting**:
    ```
    [p]llmchat Hello! How are you today?
    ```
-
-5. **Use the modal** (slash only):
-   - `/llmmodal` → opens a modal to enter a long prompt
 
 ## 📚 Commands
 
 ### Chat Commands
 
 #### `[p]llmchat [message]`
-Chat with the AI assistant.
+Chat with the AI assistant with full memory and tool integration.
+
 #### `/llmmodal`
-Open a modal for long prompts.
+Open a modal for long prompts with enhanced context awareness.
+
+### **NEW: Knowledge Base Management**
+
+#### FAQ Management
+```
+[p]openwebui knowledge faq add "How do I get help?" "Use the support channel or ping moderators"
+[p]openwebui knowledge faq remove "How do I get help?"
+[p]openwebui knowledge faq list
+```
+
+#### House Rules Management
+```
+[p]openwebui knowledge rules add "Be respectful to all members"
+[p]openwebui knowledge rules remove 1
+[p]openwebui knowledge rules list
+```
+
+#### Project Documentation
+```
+[p]openwebui knowledge projects add "MyBot" "A Discord bot for server management"
+[p]openwebui knowledge projects remove "MyBot"
+[p]openwebui knowledge projects list
+```
+
+#### Knowledge Base Operations
+```
+[p]openwebui knowledge search "help"
+[p]openwebui knowledge stats
+[p]openwebui knowledge export
+[p]openwebui knowledge import  # Attach JSON file
+```
+
+### **NEW: Tool Management**
+
+#### Guild Tool Controls
+```
+[p]openwebui tools guild add web_search
+[p]openwebui tools guild remove web_search
+[p]openwebui tools guild list
+```
+
+#### Channel Tool Controls
+```
+[p]openwebui tools channel add code_lint
+[p]openwebui tools channel remove code_lint
+[p]openwebui tools channel list
+```
+
+#### Available Tools
+```
+[p]openwebui tools available  # List all tools with descriptions
+```
+
+### **NEW: Memory System Management**
+
+#### Memory Statistics & Maintenance
+```
+[p]openwebuimemory stats      # View memory system statistics
+[p]openwebuimemory cleanup    # Manual cleanup and archiving
+[p]openwebuimemory ttl 24     # Set memory TTL in hours
+```
+
+### **NEW: Embedding Provider Management**
+
+#### Provider Configuration
+```
+[p]setopenwebui embedprovider openwebui    # Set provider
+[p]setopenwebui embedproviders             # List available providers
+```
 
 ### Auto-Reply (Owner Only)
 
 #### `[p]openwebui autochannel add <#channel>`
-Enable auto replies in a channel.
+Enable auto replies in a channel with enhanced context awareness.
 
 #### `[p]openwebui autochannel remove <#channel>`
 Disable auto replies in a channel.
@@ -84,13 +188,6 @@ List configured auto-reply channels.
 
 #### `[p]openwebui autochannel mentiononly <true|false>`
 If true, only reply when the bot is mentioned in those channels.
-
-**Examples:**
-```
-[p]llmchat What's the weather like?
-[p]llmchat Write a Python function to sort a list
-[p]llmchat Explain quantum computing in simple terms
-```
 
 ### Configuration Commands (Owner Only)
 
@@ -106,15 +203,10 @@ Set the chat model to use.
 #### `[p]setopenwebui embedmodel <model>`
 Set the embedding model for memory system.
 
-### Memory Management (Owner Only)
+### Legacy Memory Management (Owner Only)
 
 #### `[p]openwebuimemory add <name> <text>`
 Add a memory to the knowledge base.
-
-**Example:**
-```
-[p]openwebuimemory add "Python basics" "Python is a high-level programming language known for its simplicity and readability."
-```
 
 #### `[p]openwebuimemory list`
 List all memories in the knowledge base.
@@ -124,22 +216,23 @@ Delete a memory from the knowledge base.
 
 ## 🧠 How It Works
 
-### General Chat
-- The bot responds to any query as a helpful AI assistant
-- Uses a general system prompt for friendly, informative responses
-- Explicitly discourages chain-of-thought and filters `<think>` content
-- Works even without any memories stored
+### **Enhanced Chat with Memory Integration**
+- **User Profiles**: Remembers user preferences and conversation history
+- **Guild Knowledge**: Automatically includes relevant FAQs, rules, and project docs
+- **Context Awareness**: Adapts responses based on channel type and message characteristics
+- **Tool Integration**: Automatically uses appropriate tools based on question content
 
-### Memory Enhancement
-- If memories are available, the bot searches for relevant ones
-- Uses hybrid retrieval (dense + sparse search) for better results
-- Enhances responses with relevant knowledge when found
-- Continues working as general chat if no relevant memories are found
+### **Advanced Memory System**
+- **Hybrid Retrieval**: Combines dense (embeddings) and sparse (BM25) search
+- **Scoped Access**: User, channel, guild, and global memory scopes
+- **TTL Management**: Automatic cleanup with intelligent archiving
+- **Multi-Provider**: Support for multiple embedding providers with fallback
 
-### Hybrid Retrieval System
-1. **Dense Retrieval**: Uses cosine similarity with embeddings
-2. **Sparse Retrieval**: Uses BM25 for keyword matching  
-3. **Combined Results**: Merges both approaches for optimal recall
+### **Tool-Calling System**
+- **Smart Detection**: Automatically determines which tools to use
+- **Permission Layers**: Guild → Channel → User allowlist hierarchy
+- **Safe Execution**: Tool results are integrated into AI responses
+- **Extensible**: Easy to add new tools and categories
 
 ## 🔧 Configuration
 
@@ -147,10 +240,19 @@ Delete a memory from the knowledge base.
 - **Chat Models**: `deepseek-r1:8b`, `gpt-4o`, `claude-3-sonnet`, `llama-3.1-8b`
 - **Embedding Models**: `bge-large-en-v1.5`, `text-embedding-3-large`, `nomic-embed-text`
 
+### **NEW: Embedding Providers**
+- **OpenWebUI**: Default provider, uses your OpenWebUI instance
+- **Ollama**: Direct Ollama integration for local embeddings
+- **FAISS**: Local FAISS index (placeholder implementation)
+- **Chroma**: ChromaDB integration (placeholder implementation)
+- **PGVector**: PostgreSQL with pgvector extension (placeholder implementation)
+
 ### Memory Settings
 - **Similarity Threshold**: 0.8 (configurable in code)
 - **Top K Results**: 9 memories maximum per query
 - **Hybrid Weights**: 70% dense, 30% sparse retrieval
+- **TTL Default**: 24 hours (configurable)
+- **Auto-Archive**: Memories with >5 accesses or special types
 
 ## 🚨 Troubleshooting
 
@@ -162,6 +264,7 @@ Delete a memory from the knowledge base.
 
 #### "Failed to retrieve memories"
 - Check your embedding model: `[p]setopenwebui embedmodel <model>`
+- Check embedding provider: `[p]setopenwebui embedprovider <provider>`
 - Verify OpenWebUI is running and accessible
 - The bot will continue with general chat even if memory retrieval fails
 
@@ -170,10 +273,17 @@ Delete a memory from the knowledge base.
 - Check your chat model: `[p]setopenwebui chatmodel <model>`
 - Ensure the API endpoint is correct
 
+#### Tool not working
+- Check tool allowlists: `[p]openwebui tools guild list`
+- Verify tool is available: `[p]openwebui tools available`
+- Check channel permissions: `[p]openwebui tools channel list`
+
 ### Debug Commands
 ```
-[p]setopenwebui url http://localhost:8080  # Check current URL
-[p]openwebuimemory list                    # Check if memories exist
+[p]setopenwebui url http://localhost:8080     # Check current URL
+[p]openwebuimemory stats                      # Check memory system status
+[p]openwebui knowledge stats                  # Check knowledge base status
+[p]openwebui tools available                  # List available tools
 ```
 
 ## 📁 File Structure
@@ -181,9 +291,39 @@ Delete a memory from the knowledge base.
 ```
 OpenWebUIChat/
 ├── __init__.py          # Cog setup
-├── info.json           # Cog metadata  
-├── openwebuichat.py    # Main implementation
+├── info.json           # Cog metadata with dependencies
+├── openwebuichat.py    # Main implementation (2600+ lines)
 └── README.md           # This file
+```
+
+## 🎯 **Testing the New Features**
+
+### 1. **Test Knowledge Base**
+```
+[p]openwebui knowledge faq add "What is this server about?" "This is a gaming community server"
+[p]openwebui knowledge search "server"
+[p]openwebui knowledge stats
+```
+
+### 2. **Test Tool System**
+```
+[p]openwebui tools available
+[p]openwebui tools guild add web_search
+[p]llmchat "Search for the latest news about AI"
+```
+
+### 3. **Test Memory System**
+```
+[p]openwebuimemory stats
+[p]openwebuimemory cleanup
+[p]llmchat "Remember that I prefer detailed explanations"
+```
+
+### 4. **Test Embedding Providers**
+```
+[p]setopenwebui embedproviders
+[p]setopenwebui embedprovider ollama
+[p]openwebuimemory add "test" "This is a test memory"
 ```
 
 ## 🤝 Support
@@ -193,6 +333,7 @@ For issues or questions:
 2. Verify your OpenWebUI setup
 3. Check the bot logs for error messages
 4. Ensure all dependencies are installed
+5. Test with the debug commands above
 
 ## 📄 License
 
@@ -200,4 +341,6 @@ This cog is part of the Noxix-Cogs collection. Please refer to the main reposito
 
 ---
 
-**Happy chatting with your AI assistant!** 🤖✨
+**Ready to test your advanced AI assistant!** 🤖✨
+
+**Next Steps**: After testing these features, we can continue implementing the remaining 40+ advanced features including response guardrails, file ingestion, web search tools, and much more!
