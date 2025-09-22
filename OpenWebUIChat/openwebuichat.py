@@ -2024,18 +2024,26 @@ class OpenWebUIMemoryBot(commands.Cog):
             "- [p]openwebui history setmax <turns>",
             "- [p]openwebui history show | clear",
             "\nKnowledge Base:",
-            "- [p]openwebui knowledge faq add <question> <answer>",
-            "- [p]openwebui knowledge faq remove <question>",
-            "- [p]openwebui knowledge faq list",
-            "- [p]openwebui knowledge rules add <rule>",
-            "- [p]openwebui knowledge rules remove <number>",
-            "- [p]openwebui knowledge rules list",
-            "- [p]openwebui knowledge projects add <name> <description>",
-            "- [p]openwebui knowledge projects remove <name>",
-            "- [p]openwebui knowledge projects list",
+            "- [p]openwebui faq add <question> <answer>",
+            "- [p]openwebui faq remove <question>",
+            "- [p]openwebui faq list",
+            "- [p]openwebui rules add <rule>",
+            "- [p]openwebui rules remove <number>",
+            "- [p]openwebui rules list",
+            "- [p]openwebui projects add <name> <description>",
+            "- [p]openwebui projects remove <name>",
+            "- [p]openwebui projects list",
             "- [p]openwebui knowledge search <query>",
             "- [p]openwebui knowledge stats",
             "- [p]openwebui knowledge export | import",
+            "\nTools:",
+            "- [p]openwebui toolsguild add <tool_name>",
+            "- [p]openwebui toolsguild remove <tool_name>",
+            "- [p]openwebui toolsguild list",
+            "- [p]openwebui toolschannel add <tool_name>",
+            "- [p]openwebui toolschannel remove <tool_name>",
+            "- [p]openwebui toolschannel list",
+            "- [p]openwebui tools available",
             "\nModels:",
             "- [p]setopenwebui chatmodel <name>",
             "- [p]setopenwebui embedmodel <name>",
@@ -2089,13 +2097,14 @@ class OpenWebUIMemoryBot(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send_help()
 
-    @knowledge.group(name="faq")
-    async def knowledge_faq(self, ctx: commands.Context):
+    @openwebui.group(name="faq")
+    @commands.is_owner()
+    async def faq(self, ctx: commands.Context):
         """Manage server FAQs."""
         if ctx.invoked_subcommand is None:
             await ctx.send_help()
 
-    @knowledge_faq.command(name="add")
+    @faq.command(name="add")
     async def faq_add(self, ctx: commands.Context, question: str, *, answer: str):
         """Add a FAQ entry to the guild knowledge base."""
         if not ctx.guild:
@@ -2116,7 +2125,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         
         await ctx.send(f"✅ Added FAQ: **{question}**")
 
-    @knowledge_faq.command(name="remove")
+    @faq.command(name="remove")
     async def faq_remove(self, ctx: commands.Context, *, question: str):
         """Remove a FAQ entry from the guild knowledge base."""
         if not ctx.guild:
@@ -2142,7 +2151,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         
         await ctx.send(f"❌ Removed FAQ: **{question}**")
 
-    @knowledge_faq.command(name="list")
+    @faq.command(name="list")
     async def faq_list(self, ctx: commands.Context):
         """List all FAQs in the guild knowledge base."""
         if not ctx.guild:
@@ -2160,13 +2169,14 @@ class OpenWebUIMemoryBot(commands.Cog):
         for page in pagify(text):
             await ctx.send(page)
 
-    @knowledge.group(name="rules")
-    async def knowledge_rules(self, ctx: commands.Context):
+    @openwebui.group(name="rules")
+    @commands.is_owner()
+    async def rules(self, ctx: commands.Context):
         """Manage server house rules."""
         if ctx.invoked_subcommand is None:
             await ctx.send_help()
 
-    @knowledge_rules.command(name="add")
+    @rules.command(name="add")
     async def rules_add(self, ctx: commands.Context, *, rule: str):
         """Add a house rule to the guild knowledge base."""
         if not ctx.guild:
@@ -2186,7 +2196,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         
         await ctx.send(f"✅ Added house rule: **{rule}**")
 
-    @knowledge_rules.command(name="remove")
+    @rules.command(name="remove")
     async def rules_remove(self, ctx: commands.Context, rule_number: int):
         """Remove a house rule by number."""
         if not ctx.guild:
@@ -2215,7 +2225,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         
         await ctx.send(f"❌ Removed house rule: **{removed_rule}**")
 
-    @knowledge_rules.command(name="list")
+    @rules.command(name="list")
     async def rules_list(self, ctx: commands.Context):
         """List all house rules in the guild knowledge base."""
         if not ctx.guild:
@@ -2233,13 +2243,14 @@ class OpenWebUIMemoryBot(commands.Cog):
         for page in pagify(text):
             await ctx.send(page)
 
-    @knowledge.group(name="projects")
-    async def knowledge_projects(self, ctx: commands.Context):
+    @openwebui.group(name="projects")
+    @commands.is_owner()
+    async def projects(self, ctx: commands.Context):
         """Manage project documentation."""
         if ctx.invoked_subcommand is None:
             await ctx.send_help()
 
-    @knowledge_projects.command(name="add")
+    @projects.command(name="add")
     async def projects_add(self, ctx: commands.Context, project_name: str, *, description: str):
         """Add project documentation to the guild knowledge base."""
         if not ctx.guild:
@@ -2260,7 +2271,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         
         await ctx.send(f"✅ Added project documentation: **{project_name}**")
 
-    @knowledge_projects.command(name="remove")
+    @projects.command(name="remove")
     async def projects_remove(self, ctx: commands.Context, *, project_name: str):
         """Remove project documentation from the guild knowledge base."""
         if not ctx.guild:
@@ -2286,7 +2297,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         
         await ctx.send(f"❌ Removed project documentation: **{project_name}**")
 
-    @knowledge_projects.command(name="list")
+    @projects.command(name="list")
     async def projects_list(self, ctx: commands.Context):
         """List all project documentation in the guild knowledge base."""
         if not ctx.guild:
@@ -2511,13 +2522,14 @@ class OpenWebUIMemoryBot(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send_help()
 
-    @tools.group(name="guild")
-    async def tools_guild(self, ctx: commands.Context):
+    @openwebui.group(name="toolsguild")
+    @commands.is_owner()
+    async def toolsguild(self, ctx: commands.Context):
         """Manage guild-level tool allowlists."""
         if ctx.invoked_subcommand is None:
             await ctx.send_help()
 
-    @tools_guild.command(name="add")
+    @toolsguild.command(name="add")
     async def tools_guild_add(self, ctx: commands.Context, tool_name: str):
         """Add a tool to the guild allowlist."""
         if not ctx.guild:
@@ -2536,7 +2548,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         else:
             await ctx.send(f"**{tool_name}** is already in the guild allowlist.")
 
-    @tools_guild.command(name="remove")
+    @toolsguild.command(name="remove")
     async def tools_guild_remove(self, ctx: commands.Context, tool_name: str):
         """Remove a tool from the guild allowlist."""
         if not ctx.guild:
@@ -2551,7 +2563,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         else:
             await ctx.send(f"**{tool_name}** is not in the guild allowlist.")
 
-    @tools_guild.command(name="list")
+    @toolsguild.command(name="list")
     async def tools_guild_list(self, ctx: commands.Context):
         """List guild tool allowlist."""
         if not ctx.guild:
@@ -2576,13 +2588,14 @@ class OpenWebUIMemoryBot(commands.Cog):
             )
             await ctx.send(embed=embed)
 
-    @tools.group(name="channel")
-    async def tools_channel(self, ctx: commands.Context):
+    @openwebui.group(name="toolschannel")
+    @commands.is_owner()
+    async def toolschannel(self, ctx: commands.Context):
         """Manage channel-level tool allowlists."""
         if ctx.invoked_subcommand is None:
             await ctx.send_help()
 
-    @tools_channel.command(name="add")
+    @toolschannel.command(name="add")
     async def tools_channel_add(self, ctx: commands.Context, tool_name: str):
         """Add a tool to the channel allowlist."""
         if tool_name not in self.tools:
@@ -2598,7 +2611,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         else:
             await ctx.send(f"**{tool_name}** is already in the channel allowlist.")
 
-    @tools_channel.command(name="remove")
+    @toolschannel.command(name="remove")
     async def tools_channel_remove(self, ctx: commands.Context, tool_name: str):
         """Remove a tool from the channel allowlist."""
         channel_conf = self.config.channel(ctx.channel)
@@ -2610,7 +2623,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         else:
             await ctx.send(f"**{tool_name}** is not in the channel allowlist.")
 
-    @tools_channel.command(name="list")
+    @toolschannel.command(name="list")
     async def tools_channel_list(self, ctx: commands.Context):
         """List channel tool allowlist."""
         channel_conf = self.config.channel(ctx.channel)
@@ -2648,7 +2661,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         )
         embed.add_field(
             name="Usage",
-            value="Use `[p]openwebui tools guild/channel add <tool_name>` to allow tools",
+            value="Use `[p]openwebui toolsguild/toolschannel add <tool_name>` to allow tools",
             inline=False
         )
         await ctx.send(embed=embed)

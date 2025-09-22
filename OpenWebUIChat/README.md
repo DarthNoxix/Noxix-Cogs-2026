@@ -110,23 +110,23 @@ Open a modal for long prompts with enhanced context awareness.
 
 #### FAQ Management
 ```
-[p]openwebui knowledge faq add "How do I get help?" "Use the support channel or ping moderators"
-[p]openwebui knowledge faq remove "How do I get help?"
-[p]openwebui knowledge faq list
+[p]openwebui faq add "How do I get help?" "Use the support channel or ping moderators"
+[p]openwebui faq remove "How do I get help?"
+[p]openwebui faq list
 ```
 
 #### House Rules Management
 ```
-[p]openwebui knowledge rules add "Be respectful to all members"
-[p]openwebui knowledge rules remove 1
-[p]openwebui knowledge rules list
+[p]openwebui rules add "Be respectful to all members"
+[p]openwebui rules remove 1
+[p]openwebui rules list
 ```
 
 #### Project Documentation
 ```
-[p]openwebui knowledge projects add "MyBot" "A Discord bot for server management"
-[p]openwebui knowledge projects remove "MyBot"
-[p]openwebui knowledge projects list
+[p]openwebui projects add "MyBot" "A Discord bot for server management"
+[p]openwebui projects remove "MyBot"
+[p]openwebui projects list
 ```
 
 #### Knowledge Base Operations
@@ -141,16 +141,16 @@ Open a modal for long prompts with enhanced context awareness.
 
 #### Guild Tool Controls
 ```
-[p]openwebui tools guild add web_search
-[p]openwebui tools guild remove web_search
-[p]openwebui tools guild list
+[p]openwebui toolsguild add web_search
+[p]openwebui toolsguild remove web_search
+[p]openwebui toolsguild list
 ```
 
 #### Channel Tool Controls
 ```
-[p]openwebui tools channel add code_lint
-[p]openwebui tools channel remove code_lint
-[p]openwebui tools channel list
+[p]openwebui toolschannel add code_lint
+[p]openwebui toolschannel remove code_lint
+[p]openwebui toolschannel list
 ```
 
 #### Available Tools
@@ -300,7 +300,7 @@ OpenWebUIChat/
 
 ### 1. **Test Knowledge Base**
 ```
-[p]openwebui knowledge faq add "What is this server about?" "This is a gaming community server"
+[p]openwebui faq add "What is this server about?" "This is a gaming community server"
 [p]openwebui knowledge search "server"
 [p]openwebui knowledge stats
 ```
@@ -308,7 +308,7 @@ OpenWebUIChat/
 ### 2. **Test Tool System**
 ```
 [p]openwebui tools available
-[p]openwebui tools guild add web_search
+[p]openwebui toolsguild add web_search
 [p]llmchat "Search for the latest news about AI"
 ```
 
