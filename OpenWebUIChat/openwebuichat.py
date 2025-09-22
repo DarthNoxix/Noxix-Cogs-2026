@@ -22,6 +22,7 @@ from enum import Enum
 import sqlite3
 import threading
 from pathlib import Path
+from redbot.core.data_manager import cog_data_path
 
 # Helpers for serialization
 def _to_jsonable(obj):
@@ -267,7 +268,7 @@ class OpenWebUIMemoryBot(commands.Cog):
     async def cog_load(self):
         """Initialize the enhanced AI assistant with all background tasks."""
         # Set database path now that cog is loaded
-        self.db_path = self.cog_data_path() / "memories.db"
+        self.db_path = cog_data_path(self) / "memories.db"
         await self._initialize_database()
         await self._load_persistent_data()
         await self._initialize_tools()
