@@ -260,8 +260,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         self.analytics_task: Optional[asyncio.Task] = None
         
         # Database connections
-        self.db_path = Path("data/OpenWebUIChat/memories.db")
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.db_path = self.cog_data_path() / "memories.db"
         self.db_lock = threading.Lock()
 
     # ───────────────── lifecycle ─────────────────
