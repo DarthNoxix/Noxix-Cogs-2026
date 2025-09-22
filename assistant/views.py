@@ -1251,7 +1251,7 @@ class RegenerateView(discord.ui.View):
             await self.original_message.edit(content=new_response)
             
             # Update button to show success
-            button.label = "✅ Regenerated"
+            button.label = "Regenerated"
             button.style = discord.ButtonStyle.success
             await interaction.edit_original_response(view=self)
             
@@ -1261,7 +1261,7 @@ class RegenerateView(discord.ui.View):
         except Exception as e:
             # Reset button on error
             button.disabled = False
-            button.label = "🔄 Regenerate"
+            button.label = "Regenerate"
             button.style = discord.ButtonStyle.secondary
             await interaction.edit_original_response(view=self)
             
