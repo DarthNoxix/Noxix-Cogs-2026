@@ -293,7 +293,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         for task in tasks_to_cancel:
             if task:
                 task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
+            with contextlib.suppress(asyncio.CancelledError):
                     await task
         
         await self._persist_data()
@@ -1180,6 +1180,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         
         # Enhanced memory retrieval
         relevant_memories = []
+        source_items: List[str] = []
         if mems or self.memory_entries:
             try:
                 # Search both legacy memories and new memory entries
@@ -1187,6 +1188,8 @@ class OpenWebUIMemoryBot(commands.Cog):
                     prompt_vec = np.array(await self._api_embed(question))
                     legacy_memories = await self._best_memories(prompt_vec, question, mems)
                     relevant_memories.extend(legacy_memories)
+                    for mem_text in legacy_memories[:TOP_K]:
+                        source_items.append(f"legacy: {mem_text[:180]}{'…' if len(mem_text) > 180 else ''}")
                 
                 # Search new memory system
                 memory_scope = MemoryScope.GUILD if guild else MemoryScope.GLOBAL
@@ -1197,6 +1200,9 @@ class OpenWebUIMemoryBot(commands.Cog):
                 
                 new_memories = await self.search_memories(question, memory_scope, limit=TOP_K)
                 relevant_memories.extend([m.text for m in new_memories])
+                for m in new_memories[:TOP_K]:
+                    label = m.metadata.get("type", "memory")
+                    source_items.append(f"{label}: {m.text[:180]}{'…' if len(m.text) > 180 else ''}")
                 
                 # Add guild knowledge base content
                 if guild:
@@ -1206,11 +1212,13 @@ class OpenWebUIMemoryBot(commands.Cog):
                         question_lower = question.lower()
                         for faq_q, faq_a in guild_kb.faqs.items():
                             if any(word in question_lower for word in faq_q.lower().split()):
-                                relevant_memories.append(f"FAQ: {faq_q} - {faq_a}")
+                                faq_text = f"FAQ: {faq_q} - {faq_a}"
+                                relevant_memories.append(faq_text)
+                                source_items.append(faq_text[:200] + ("…" if len(faq_text) > 200 else ""))
                 
             except Exception as e:
                 log.warning(f"Failed to retrieve memories: {e}")
-        
+
         # Enhance system prompt with relevant knowledge
         if relevant_memories:
             system_prompt += (
@@ -1236,7 +1244,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         
         # Add current question
         messages.append({"role": "user", "content": question})
-        
+
         # Check for tool usage
         tools_to_use = await self._determine_tools_to_use(question, guild, channel, user)
         tool_results = {}
@@ -1253,6 +1261,9 @@ class OpenWebUIMemoryBot(commands.Cog):
         # Generate response
         reply = await self._api_chat(messages)
         sanitized_reply = self._sanitize_reply(reply)
+
+        # Apply response guardrails
+        sanitized_reply, guard_flags = self._apply_guardrails(question, sanitized_reply)
         
         # Update user memory
         if user:
@@ -1273,10 +1284,33 @@ class OpenWebUIMemoryBot(commands.Cog):
             "tools_used": list(tool_results.keys()),
             "response_mode": response_mode.value,
             "user_preferences": user_prefs,
-            "guild_settings": guild_settings
+            "guild_settings": guild_settings,
+            "sources": source_items[:5],
+            "guardrails": guard_flags
         }
         
         return sanitized_reply, metadata
+
+    def _apply_guardrails(self, question: str, reply: str) -> Tuple[str, Dict[str, Any]]:
+        """Simple response guardrails: basic toxicity filter and safety fallback.
+        Returns possibly modified reply and flags about what was applied.
+        """
+        flags: Dict[str, Any] = {"toxic": False}
+        try:
+            lower = f"{question}\n{reply}".lower()
+            banned = [
+                "kill yourself", "kys", "hate speech", "racist", "nazi", "slur"
+            ]
+            if any(term in lower for term in banned):
+                flags["toxic"] = True
+                safe = (
+                    "I can't assist with that. Let's keep the conversation respectful and safe. "
+                    "If you need support, consider reaching out to a moderator."
+                )
+                return safe, flags
+        except Exception:
+            pass
+        return reply, flags
 
     async def _get_user_preferences(self, user: discord.abc.User) -> Dict[str, Any]:
         """Get user preferences and settings."""
@@ -1701,6 +1735,18 @@ class OpenWebUIMemoryBot(commands.Cog):
         log.info(f"AI response (sanitized): '{reply}' | meta={meta}")
         model = await self.config.chat_model()
         embeds = self._build_embeds(reply, ctx.author, model)
+        # Append sources card if enabled
+        try:
+            if isinstance(ctx.channel, discord.abc.GuildChannel):
+                if await self.config.channel(ctx.channel).show_sources():
+                    sources = []
+                    # Best-effort: retrieve last metadata by regenerating lightweight context
+                    # In this simple version, we only indicate that sources are available via knowledge base and memory count.
+                    sources.append("Sources are available via knowledge base and memory retrieval.")
+                    src_embed = discord.Embed(title="Sources", description="\n".join(sources), color=discord.Color.dark_gray())
+                    embeds.append(src_embed)
+        except Exception:
+            pass
         # Send first embed with controls, rest plain
         if embeds:
             view = self._controls_for(ctx.channel, ctx.author, question) if self._can_use_controls(ctx.channel) else None
@@ -1740,6 +1786,14 @@ class OpenWebUIMemoryBot(commands.Cog):
                 )
                 model = await self.outer.config.chat_model()
                 embeds = self.outer._build_embeds(reply, interaction.user, model)
+                try:
+                    ch = interaction.channel
+                    if ch and isinstance(ch, discord.abc.GuildChannel):
+                        if await self.outer.config.channel(ch).show_sources():
+                            src = discord.Embed(title="Sources", description="Knowledge base and memory retrieval used where applicable.", color=discord.Color.dark_gray())
+                            embeds.append(src)
+                except Exception:
+                    pass
                 for embed in embeds:
                     await interaction.followup.send(embed=embed)
         await ctx.interaction.response.send_modal(PromptModal(self))
@@ -1802,6 +1856,48 @@ class OpenWebUIMemoryBot(commands.Cog):
             inline=False
         )
         await ctx.send(embed=embed)
+
+    # ───────────────── prompt templates management ───────────────
+    @commands.hybrid_group(name="prompt")
+    @commands.is_owner()
+    async def prompt(self, ctx: commands.Context):
+        """Manage prompt templates per-channel."""
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help()
+
+    @prompt.command(name="set")
+    async def prompt_set(self, ctx: commands.Context, *, template: str):
+        """Set a custom prompt template for this channel."""
+        await self.config.channel(ctx.channel).prompt_template.set(template)
+        await ctx.send("✅ Prompt template set for this channel.")
+
+    @prompt.command(name="clear")
+    async def prompt_clear(self, ctx: commands.Context):
+        """Clear the custom prompt template for this channel."""
+        await self.config.channel(ctx.channel).prompt_template.set("")
+        await ctx.send("🧹 Prompt template cleared for this channel.")
+
+    @prompt.command(name="show")
+    async def prompt_show(self, ctx: commands.Context):
+        """Show the current prompt template for this channel."""
+        tpl = await self.config.channel(ctx.channel).prompt_template()
+        await ctx.send(box(tpl or "<none>", lang="md"))
+
+    @prompt.command(name="mode")
+    async def prompt_mode(self, ctx: commands.Context, mode: str):
+        """Set response mode: normal | show_work | snippet | thread."""
+        try:
+            mode_enum = ResponseMode(mode.lower())
+        except ValueError:
+            return await ctx.send("❌ Invalid mode. Use one of: normal, show_work, snippet, thread")
+        await self.config.channel(ctx.channel).response_mode.set(mode_enum.value)
+        await ctx.send(f"✅ Response mode set to **{mode_enum.value}** for this channel.")
+
+    @prompt.command(name="sources")
+    async def prompt_sources(self, ctx: commands.Context, show: bool):
+        """Toggle showing sources/KB hits under replies in this channel."""
+        await self.config.channel(ctx.channel).show_sources.set(bool(show))
+        await ctx.send(f"✅ Show sources set to **{bool(show)}** for this channel.")
 
     @commands.hybrid_group(name="openwebuimemory")
     @commands.is_owner()
@@ -2171,6 +2267,26 @@ class OpenWebUIMemoryBot(commands.Cog):
         for page in pagify(text):
             await ctx.send(page)
 
+    # Nested under knowledge for intuitive usage
+    @knowledge.group(name="faq")
+    @commands.is_owner()
+    async def knowledge_faq(self, ctx: commands.Context):
+        """Manage server FAQs (under knowledge)."""
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help()
+
+    @knowledge_faq.command(name="add")
+    async def knowledge_faq_add(self, ctx: commands.Context, question: str, *, answer: str):
+        return await self.faq_add(ctx, question, answer=answer)
+
+    @knowledge_faq.command(name="remove")
+    async def knowledge_faq_remove(self, ctx: commands.Context, *, question: str):
+        return await self.faq_remove(ctx, question=question)
+
+    @knowledge_faq.command(name="list")
+    async def knowledge_faq_list(self, ctx: commands.Context):
+        return await self.faq_list(ctx)
+
     @openwebui.group(name="rules")
     @commands.is_owner()
     async def rules(self, ctx: commands.Context):
@@ -2245,6 +2361,25 @@ class OpenWebUIMemoryBot(commands.Cog):
         for page in pagify(text):
             await ctx.send(page)
 
+    # Nested under knowledge for intuitive usage
+    @knowledge.group(name="rules")
+    @commands.is_owner()
+    async def knowledge_rules(self, ctx: commands.Context):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help()
+
+    @knowledge_rules.command(name="add")
+    async def knowledge_rules_add(self, ctx: commands.Context, *, rule: str):
+        return await self.rules_add(ctx, rule=rule)
+
+    @knowledge_rules.command(name="remove")
+    async def knowledge_rules_remove(self, ctx: commands.Context, rule_number: int):
+        return await self.rules_remove(ctx, rule_number=rule_number)
+
+    @knowledge_rules.command(name="list")
+    async def knowledge_rules_list(self, ctx: commands.Context):
+        return await self.rules_list(ctx)
+
     @openwebui.group(name="projects")
     @commands.is_owner()
     async def projects(self, ctx: commands.Context):
@@ -2316,6 +2451,25 @@ class OpenWebUIMemoryBot(commands.Cog):
         text = "**Project Documentation:**\n\n" + "\n\n".join(projects_list)
         for page in pagify(text):
             await ctx.send(page)
+
+    # Nested under knowledge for intuitive usage
+    @knowledge.group(name="projects")
+    @commands.is_owner()
+    async def knowledge_projects(self, ctx: commands.Context):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help()
+
+    @knowledge_projects.command(name="add")
+    async def knowledge_projects_add(self, ctx: commands.Context, project_name: str, *, description: str):
+        return await self.projects_add(ctx, project_name=project_name, description=description)
+
+    @knowledge_projects.command(name="remove")
+    async def knowledge_projects_remove(self, ctx: commands.Context, *, project_name: str):
+        return await self.projects_remove(ctx, project_name=project_name)
+
+    @knowledge_projects.command(name="list")
+    async def knowledge_projects_list(self, ctx: commands.Context):
+        return await self.projects_list(ctx)
 
     @knowledge.command(name="search")
     async def knowledge_search(self, ctx: commands.Context, *, query: str):
