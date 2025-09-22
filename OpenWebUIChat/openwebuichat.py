@@ -486,11 +486,17 @@ class OpenWebUIMemoryBot(commands.Cog):
             user_profiles_data[str(user_id)] = data
         await self.config.user_profiles.set(user_profiles_data)
         
-        # Save guild knowledge bases
-        guild_kb_data = {
-            str(guild_id): asdict(kb) 
-            for guild_id, kb in self.guild_knowledge_bases.items()
-        }
+        # Save guild knowledge bases (serialize enums and datetimes)
+        guild_kb_data: Dict[str, Dict[str, Any]] = {}
+        for guild_id, kb in self.guild_knowledge_bases.items():
+            data = asdict(kb)
+            # Normalize enum
+            scope_value = kb.scope.value if isinstance(kb.scope, MemoryScope) else str(kb.scope)
+            data["scope"] = scope_value
+            # Normalize datetimes
+            data["created_at"] = kb.created_at.isoformat() if isinstance(kb.created_at, datetime) else kb.created_at
+            data["updated_at"] = kb.updated_at.isoformat() if isinstance(kb.updated_at, datetime) else kb.updated_at
+            guild_kb_data[str(guild_id)] = data
         await self.config.guild_knowledge_bases.set(guild_kb_data)
         
         # Save memory entries
@@ -2545,6 +2551,7 @@ class OpenWebUIMemoryBot(commands.Cog):
         text = f"**Grep results for '{query}':**\n\n" + "\n\n".join(hits[:10])
         for page in pagify(text):
             await ctx.send(page)
+        return
         
         search_results = []
         for i, entry in enumerate(results, 1):
