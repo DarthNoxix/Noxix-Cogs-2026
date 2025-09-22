@@ -31,7 +31,8 @@ A comprehensive absence management system for Discord servers that automatically
 - `[p]absence config` - View and modify configuration
 
 ### Management Commands
-- `[p]absence add @user` - Add an absence for a user (opens modal)
+- `[p]absence add @user [reason]` - Add an absence for a user (opens modal)
+- `[p]absence quickadd @user <duration> [reason]` - Quickly add an absence without modal
 - `[p]absence remove @user` - Remove an absence for a user
 - `[p]absence list` - View all current absences
 - `[p]absence role @role` - Add/remove authorized roles
@@ -39,6 +40,15 @@ A comprehensive absence management system for Discord servers that automatically
 ## Usage Examples
 
 ### Adding Absences
+
+**Quick Method (Recommended):**
+```
+[p]absence quickadd @user for 5 days Vacation time
+[p]absence quickadd @user until 2024-01-15 Medical leave
+[p]absence quickadd @user indefinite Personal reasons
+```
+
+**Modal Method:**
 When you use `[p]absence add @user`, a modal will open where you can:
 - Enter a reason (optional)
 - Specify duration using:
@@ -50,8 +60,8 @@ When you use `[p]absence add @user`, a modal will open where you can:
 
 ### Interactive Buttons
 The absence embed includes buttons for:
-- **➕ Add Absence**: Opens user selection modal
-- **➖ Remove Absence**: Opens user selection modal  
+- **⚡ Quick Add**: Opens quick add modal (user, duration, reason all in one)
+- **🗑️ Remove Absence**: Opens user selection modal  
 - **🔄 Refresh**: Manually refresh the embed
 
 ## Configuration Options

@@ -336,11 +336,77 @@ class AbsenceManager(commands.Cog):
         # Create a view with a button to open the modal
         view = AbsenceAddView(self, user, reason)
         embed = discord.Embed(
-            title="➕ Add Absence",
-            description=f"Click the button below to add an absence for {user.mention}.",
+            title="✨ Add Absence ✨",
+            description=f"🎯 **Adding absence for:** {user.mention}\n\n"
+                       f"💭 **Reason:** {reason if reason else 'No reason provided'}\n\n"
+                       f"📝 Click the button below to set the duration and complete the absence.",
             color=0x3498db
         )
+        embed.set_thumbnail(url=user.display_avatar.url)
+        embed.set_footer(text="💎 Premium Absence Management System")
         await ctx.send(embed=embed, view=view)
+
+    @absence.command(name="quickadd")
+    async def absence_quickadd(self, ctx: commands.Context, user: discord.Member, duration: str, *, reason: str = ""):
+        """Quickly add an absence without using a modal."""
+        if not await self._check_authorization(ctx):
+            return
+            
+        try:
+            # Parse duration
+            start_date = datetime.utcnow()
+            end_date = None
+            is_indefinite = False
+            
+            duration_lower = duration.lower()
+            if duration_lower == "indefinite":
+                is_indefinite = True
+            elif duration_lower.startswith("until "):
+                try:
+                    date_str = duration_lower[6:].strip()
+                    end_date = datetime.fromisoformat(date_str)
+                except ValueError:
+                    await ctx.send("❌ Invalid date format. Use YYYY-MM-DD format.")
+                    return
+            elif duration_lower.startswith("for "):
+                try:
+                    time_str = duration_lower[4:].strip()
+                    if "day" in time_str:
+                        days = int(time_str.split()[0])
+                        end_date = start_date + timedelta(days=days)
+                    elif "week" in time_str:
+                        weeks = int(time_str.split()[0])
+                        end_date = start_date + timedelta(weeks=weeks)
+                    elif "month" in time_str:
+                        months = int(time_str.split()[0])
+                        end_date = start_date + timedelta(days=months * 30)
+                    else:
+                        raise ValueError("Invalid time unit")
+                except (ValueError, IndexError):
+                    await ctx.send("❌ Invalid duration format. Use 'for X days/weeks/months'.")
+                    return
+            else:
+                await ctx.send("❌ Invalid duration format. Use 'until YYYY-MM-DD', 'for X days', or 'indefinite'.")
+                return
+            
+            # Add absence
+            await self._add_absence(user, reason, start_date, end_date, is_indefinite, ctx.author)
+            
+            embed = discord.Embed(
+                title="✨ Absence Added Successfully! ✨",
+                description=f"🎉 **{user.display_name}** has been marked as absent.\n\n"
+                           f"📅 **Duration:** {duration}\n"
+                           f"💭 **Reason:** {reason if reason else 'No reason provided'}\n\n"
+                           f"🔄 The absence list has been automatically updated!",
+                color=0x2ecc71
+            )
+            embed.set_thumbnail(url=user.display_avatar.url)
+            embed.set_footer(text="💎 Premium Absence Management System")
+            await ctx.send(embed=embed)
+            
+        except Exception as e:
+            log.error(f"Error adding absence: {e}")
+            await ctx.send("❌ An error occurred while adding the absence.")
 
     @absence.command(name="remove")
     async def absence_remove(self, ctx: commands.Context, user: discord.Member):
@@ -361,14 +427,17 @@ class AbsenceManager(commands.Cog):
         if removed:
             await self._update_absence_embed(ctx.guild)
             embed = discord.Embed(
-                title="✅ Absence Removed",
-                description=f"Absence for {user.mention} has been removed.",
+                title="✨ Absence Removed Successfully! ✨",
+                description=f"🎉 **{user.display_name}** is no longer marked as absent.\n\n"
+                           f"🔄 The absence list has been automatically updated!",
                 color=0x2ecc71
             )
+            embed.set_thumbnail(url=user.display_avatar.url)
+            embed.set_footer(text="💎 Premium Absence Management System")
         else:
             embed = discord.Embed(
                 title="❌ No Absence Found",
-                description=f"No active absence found for {user.mention}.",
+                description=f"🔍 No active absence found for {user.mention}.",
                 color=0xe74c3c
             )
             
@@ -639,18 +708,18 @@ class AbsenceManagementView(discord.ui.View):
         super().__init__(timeout=None)
 
     @discord.ui.button(
-        label="✨ Add Absence", 
+        label="✨ Quick Add", 
         style=discord.ButtonStyle.primary, 
-        emoji="➕",
-        custom_id="absence_add_button"
+        emoji="⚡",
+        custom_id="absence_quick_add_button"
     )
-    async def add_absence_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Beautiful button to add a new absence."""
+    async def quick_add_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Beautiful button for quick absence addition."""
         if not await self.cog._check_authorization(interaction):
             return
             
-        # Create user selection modal
-        modal = UserSelectModal(self.cog, "✨ Add Absence")
+        # Create quick add modal
+        modal = QuickAddModal(self.cog)
         await interaction.response.send_modal(modal)
 
     @discord.ui.button(
@@ -687,6 +756,145 @@ class AbsenceManagementView(discord.ui.View):
         )
         embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/🔄.png")
         await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+class QuickAddModal(discord.ui.Modal):
+    """Beautiful modal for quick absence addition."""
+    
+    def __init__(self, cog: AbsenceManager):
+        self.cog = cog
+        super().__init__(title="⚡ Quick Add Absence ⚡")
+        
+        self.user_input = discord.ui.TextInput(
+            label="👤 User (ID, mention, or name)",
+            placeholder="Enter user ID, mention, or display name...",
+            required=True,
+            max_length=100
+        )
+        self.add_item(self.user_input)
+        
+        self.duration_input = discord.ui.TextInput(
+            label="📅 Duration",
+            placeholder="Examples: 'until 2024-01-15', 'for 5 days', 'indefinite'",
+            required=True,
+            max_length=100
+        )
+        self.add_item(self.duration_input)
+        
+        self.reason_input = discord.ui.TextInput(
+            label="💭 Reason (Optional)",
+            placeholder="Enter a reason for the absence...",
+            required=False,
+            max_length=1000,
+            style=discord.TextStyle.paragraph
+        )
+        self.add_item(self.reason_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        """Handle modal submission."""
+        await interaction.response.defer()
+        
+        try:
+            # Find user
+            user_input = self.user_input.value.strip()
+            user = None
+            
+            # Try to parse as user ID
+            if user_input.isdigit():
+                user = interaction.guild.get_member(int(user_input))
+            
+            # Try to parse as mention
+            if not user and user_input.startswith("<@") and user_input.endswith(">"):
+                user_id = user_input[2:-1]
+                if user_id.startswith("!"):
+                    user_id = user_id[1:]
+                if user_id.isdigit():
+                    user = interaction.guild.get_member(int(user_id))
+            
+            # Try to find by display name
+            if not user:
+                for member in interaction.guild.members:
+                    if user_input.lower() in member.display_name.lower() or user_input.lower() in member.name.lower():
+                        user = member
+                        break
+            
+            if not user:
+                await interaction.followup.send(
+                    "❌ User not found. Please provide a valid user ID, mention, or name.",
+                    ephemeral=True
+                )
+                return
+            
+            # Parse duration
+            duration = self.duration_input.value.strip().lower()
+            reason = self.reason_input.value.strip()
+            
+            start_date = datetime.utcnow()
+            end_date = None
+            is_indefinite = False
+            
+            if duration == "indefinite":
+                is_indefinite = True
+            elif duration.startswith("until "):
+                try:
+                    date_str = duration[6:].strip()
+                    end_date = datetime.fromisoformat(date_str)
+                except ValueError:
+                    await interaction.followup.send(
+                        "❌ Invalid date format. Use YYYY-MM-DD format.",
+                        ephemeral=True
+                    )
+                    return
+            elif duration.startswith("for "):
+                try:
+                    time_str = duration[4:].strip()
+                    if "day" in time_str:
+                        days = int(time_str.split()[0])
+                        end_date = start_date + timedelta(days=days)
+                    elif "week" in time_str:
+                        weeks = int(time_str.split()[0])
+                        end_date = start_date + timedelta(weeks=weeks)
+                    elif "month" in time_str:
+                        months = int(time_str.split()[0])
+                        end_date = start_date + timedelta(days=months * 30)
+                    else:
+                        raise ValueError("Invalid time unit")
+                except (ValueError, IndexError):
+                    await interaction.followup.send(
+                        "❌ Invalid duration format. Use 'for X days/weeks/months'.",
+                        ephemeral=True
+                    )
+                    return
+            else:
+                await interaction.followup.send(
+                    "❌ Invalid duration format. Use 'until YYYY-MM-DD', 'for X days', or 'indefinite'.",
+                    ephemeral=True
+                )
+                return
+            
+            # Add absence
+            await self.cog._add_absence(
+                user, reason, start_date, end_date, is_indefinite, interaction.user
+            )
+            
+            embed = discord.Embed(
+                title="✨ Absence Added Successfully! ✨",
+                description=f"🎉 **{user.display_name}** has been marked as absent.\n\n"
+                           f"📅 **Duration:** {duration}\n"
+                           f"💭 **Reason:** {reason if reason else 'No reason provided'}\n\n"
+                           f"🔄 The absence list has been automatically updated!",
+                color=0x2ecc71
+            )
+            embed.set_thumbnail(url=user.display_avatar.url)
+            embed.set_footer(text="💎 Premium Absence Management System")
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            log.error(f"Error adding absence: {e}")
+            await interaction.followup.send(
+                "❌ An error occurred while adding the absence.",
+                ephemeral=True
+            )
 
 
 class UserSelectModal(discord.ui.Modal):
