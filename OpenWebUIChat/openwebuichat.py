@@ -77,6 +77,7 @@ class EmbeddingProvider(Enum):
     FAISS = "faiss"
     CHROMA = "chroma"
     PGVECTOR = "pgvector"
+    OPENAI = "openai"
 
 class MemoryScope(Enum):
     GLOBAL = "global"
@@ -89,6 +90,10 @@ class ResponseMode(Enum):
     SHOW_WORK = "show_work"
     SNIPPET = "snippet"
     THREAD = "thread"
+
+class ChatProvider(Enum):
+    OPENWEBUI = "openwebui"
+    OPENAI = "openai"
 
 class ToolCategory(Enum):
     WEB_SEARCH = "web_search"
@@ -179,6 +184,9 @@ class OpenWebUIMemoryBot(commands.Cog):
             chat_model="deepseek-r1:8b",
             embed_model="bge-large-en-v1.5",
             embedding_provider=EmbeddingProvider.OPENWEBUI.value,
+            chat_provider=ChatProvider.OPENWEBUI.value,
+            openai_api_key="",
+            openai_base="https://api.openai.com/v1",
             memories={},  # Legacy format for backward compatibility
             user_profiles={},  # user_id -> UserMemoryProfile
             guild_knowledge_bases={},  # guild_id -> GuildKnowledgeBase
@@ -1048,17 +1056,37 @@ class OpenWebUIMemoryBot(commands.Cog):
             self.config.chat_model(), self.config.embed_model()
         )
 
+    async def _get_openai(self):
+        return await asyncio.gather(
+            self.config.openai_base(), self.config.openai_api_key(),
+            self.config.chat_model(), self.config.embed_model()
+        )
+
     async def _api_chat(self, messages: list) -> str:
-        base, key, chat_model, _ = await self._get_keys()
-        if not base or not key:
-            raise RuntimeError("OpenWebUI URL or key not set.")
-        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-        async with httpx.AsyncClient(timeout=60) as c:
-            r = await c.post(f"{base.rstrip('/')}/chat/completions",
-                             headers=headers,
-                             json={"model": chat_model, "messages": messages})
-            r.raise_for_status()
-            return r.json()["choices"][0]["message"]["content"]
+        # Route by chat provider
+        provider = ChatProvider(await self.config.chat_provider())
+        if provider == ChatProvider.OPENAI:
+            base, key, chat_model, _ = await self._get_openai()
+            if not key:
+                raise RuntimeError("OpenAI API key not set.")
+            headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            async with httpx.AsyncClient(timeout=60) as c:
+                r = await c.post(f"{base.rstrip('/')}/chat/completions",
+                                 headers=headers,
+                                 json={"model": chat_model, "messages": messages})
+                r.raise_for_status()
+                return r.json()["choices"][0]["message"]["content"]
+        else:
+            base, key, chat_model, _ = await self._get_keys()
+            if not base or not key:
+                raise RuntimeError("OpenWebUI URL or key not set.")
+            headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            async with httpx.AsyncClient(timeout=60) as c:
+                r = await c.post(f"{base.rstrip('/')}/chat/completions",
+                                 headers=headers,
+                                 json={"model": chat_model, "messages": messages})
+                r.raise_for_status()
+                return r.json()["choices"][0]["message"]["content"]
 
     async def _api_embed(self, text: str) -> List[float]:
         """Generate embeddings using the configured provider."""
@@ -1087,6 +1115,8 @@ class OpenWebUIMemoryBot(commands.Cog):
                 embedding = await self._embed_chroma(text)
             elif provider == EmbeddingProvider.PGVECTOR:
                 embedding = await self._embed_pgvector(text)
+            elif provider == EmbeddingProvider.OPENAI:
+                embedding = await self._embed_openai(text)
             else:
                 # Fallback to OpenWebUI
                 embedding = await self._embed_openwebui(base, headers, embed_model, text)
@@ -1152,6 +1182,21 @@ class OpenWebUIMemoryBot(commands.Cog):
         # For now, return a placeholder embedding
         import random
         return [random.random() for _ in range(384)]  # Typical embedding size
+
+    async def _embed_openai(self, text: str) -> List[float]:
+        """Generate embeddings using OpenAI embeddings API."""
+        base, key, _, embed_model = await self._get_openai()
+        if not key:
+            raise RuntimeError("OpenAI API key not set.")
+        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+        async with httpx.AsyncClient(timeout=60) as c:
+            r = await c.post(f"{base.rstrip('/')}/embeddings",
+                             headers=headers,
+                             json={"model": embed_model, "input": [self._normalize_text(text)]})
+            r.raise_for_status()
+            data = r.json()
+            # OpenAI returns { data: [{ embedding: [...] } ] }
+            return data["data"][0]["embedding"]
 
     def _sanitize_reply(self, text: str) -> str:
         """Remove chain-of-thought markers like <think>...</think> and stage directions."""
@@ -1872,6 +1917,23 @@ class OpenWebUIMemoryBot(commands.Cog):
         )
         await ctx.send(embed=embed)
 
+    @setopenwebui.command()
+    async def chatprovider(self, ctx, provider: str):
+        """Set the chat provider (openwebui, openai)."""
+        try:
+            provider_enum = ChatProvider(provider.lower())
+            await self.config.chat_provider.set(provider_enum.value)
+            await ctx.send(f"✅ Chat provider set to {provider_enum.value}.")
+        except ValueError:
+            await ctx.send("❌ Invalid provider. Valid options: openwebui, openai")
+
+    @setopenwebui.command()
+    async def openai(self, ctx, key: str, base: str = "https://api.openai.com/v1"):
+        """Configure OpenAI API key (and optional base URL)."""
+        await self.config.openai_api_key.set(key)
+        await self.config.openai_base.set(base)
+        await ctx.send("✅ OpenAI credentials updated.")
+
     # ───────────────── prompt templates management ───────────────
     @commands.hybrid_group(name="prompt")
     @commands.is_owner()
@@ -2441,6 +2503,24 @@ class OpenWebUIMemoryBot(commands.Cog):
         results = await self.search_memories(query, MemoryScope.GUILD, limit=5)
         
         if not results:
+            # Fallback: direct substring scan of the structured KB
+            guild_kb = await self.get_guild_knowledge_base(ctx.guild.id)
+            ql = query.lower()
+            fallback_results: List[str] = []
+            for q, a in (guild_kb.faqs or {}).items():
+                if ql in q.lower() or ql in a.lower():
+                    fallback_results.append(f"FAQ: {q}\n   {a[:200]}{'...' if len(a) > 200 else ''}")
+            for rule in (guild_kb.house_rules or []):
+                if ql in rule.lower():
+                    fallback_results.append(f"House Rule: {rule}")
+            for name, desc in (guild_kb.project_docs or {}).items():
+                if ql in name.lower() or ql in desc.lower():
+                    fallback_results.append(f"Project: {name}\n   {desc[:200]}{'...' if len(desc) > 200 else ''}")
+            if fallback_results:
+                text = f"**Search results for '{query}':**\n\n" + "\n\n".join(fallback_results[:5])
+                for page in pagify(text):
+                    await ctx.send(page)
+                return
             return await ctx.send("No relevant information found in the server's knowledge base.")
         
         search_results = []
