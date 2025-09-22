@@ -51,7 +51,7 @@ _ = Translator("OpenWebUIChat", __file__)
 
 MAX_MSG = 1900
 FALLBACK = "I'm here to help! How can I assist you today?"
-SIM_THRESHOLD = 0.8  # Cosine similarity gate (0-1), matching ChatGPT
+SIM_THRESHOLD = 0.3  # Cosine similarity gate (lower to ensure recalls)
 TOP_K = 9  # Max memories sent to the LLM, matching ChatGPT
 EMBED_CHUNK = 3900  # Safe embed description chunk size
 
@@ -1257,16 +1257,31 @@ class OpenWebUIMemoryBot(commands.Cog):
                     for mem_text in legacy_memories[:TOP_K]:
                         source_items.append(f"legacy: {mem_text[:180]}{'…' if len(mem_text) > 180 else ''}")
                 
-                # Search new memory system
-                memory_scope = MemoryScope.GUILD if guild else MemoryScope.GLOBAL
+                # Search new memory system across multiple scopes (union) like Assistant
+                scopes_to_search: List[MemoryScope] = []
+                if guild:
+                    scopes_to_search.append(MemoryScope.GUILD)
                 if channel:
-                    memory_scope = MemoryScope.CHANNEL
+                    scopes_to_search.append(MemoryScope.CHANNEL)
                 if user:
-                    memory_scope = MemoryScope.USER
-                
-                new_memories = await self.search_memories(question, memory_scope, limit=TOP_K)
-                relevant_memories.extend([m.text for m in new_memories])
-                for m in new_memories[:TOP_K]:
+                    scopes_to_search.append(MemoryScope.USER)
+                # Always include GLOBAL as a backstop
+                scopes_to_search.append(MemoryScope.GLOBAL)
+
+                seen_ids = set()
+                aggregated: List[MemoryEntry] = []
+                for sc in scopes_to_search:
+                    try:
+                        hits = await self.search_memories(question, sc, limit=TOP_K)
+                    except Exception:
+                        hits = []
+                    for h in hits:
+                        if h.id not in seen_ids:
+                            seen_ids.add(h.id)
+                            aggregated.append(h)
+
+                relevant_memories.extend([m.text for m in aggregated])
+                for m in aggregated[:TOP_K]:
                     label = m.metadata.get("type", "memory")
                     source_items.append(f"{label}: {m.text[:180]}{'…' if len(m.text) > 180 else ''}")
                 
@@ -1285,23 +1300,24 @@ class OpenWebUIMemoryBot(commands.Cog):
             except Exception as e:
                 log.warning(f"Failed to retrieve memories: {e}")
 
-        # Enhance system prompt with relevant knowledge
+        # Enhance system prompt with relevant knowledge (assistant-style injection)
         if relevant_memories:
-            system_prompt += (
-                "\n\nYou have access to relevant knowledge:\n"
-                + "\n".join(f"- {mem}" for mem in relevant_memories[:TOP_K])
+            related_block = "\n\n# RELATED EMBEDDINGS\n" + "\n".join(
+                f"- {mem}" for mem in relevant_memories[:TOP_K]
             )
+            system_prompt += related_block
         
-        # Build conversation context
+        # Build conversation context (Assistant-style structure)
         messages = [{"role": "system", "content": system_prompt}]
         
-        # Add user's conversation history
+        # Add user's conversation history (trimmed)
         if user:
             user_profile = await self.get_user_memory_profile(user.id)
-            for turn in user_profile.short_term_memory[-10:]:  # Last 10 turns
+            history_turns = user_profile.short_term_memory[-MAX_CONVERSATION_TURNS:]
+            for turn in history_turns:
                 messages.append({"role": turn.role, "content": turn.content})
         
-        # Add channel history if enabled
+        # Add channel history if enabled (degrade to fit)
         if channel and channel_settings.get("history_enabled", True):
             hist = await self.config.channel(channel).history()
             if hist:
@@ -1311,17 +1327,18 @@ class OpenWebUIMemoryBot(commands.Cog):
             # Add current question
             messages.append({"role": "user", "content": question})
 
-        # Check for tool usage
-        tools_to_use = await self._determine_tools_to_use(question, guild, channel, user)
+        # Check for tool usage (assistant-style: keep under token budget)
         tool_results = {}
-        
+        try:
+            tools_to_use = await self._determine_tools_to_use(question, guild, channel, user)
+        except Exception:
+            tools_to_use = []
         if tools_to_use:
             tool_results = await self._execute_tools(tools_to_use, question, user, guild)
             if tool_results:
-                # Add tool results to context
-                tool_context = "\n\nTool Results:\n"
-                for tool_name, result in tool_results.items():
-                    tool_context += f"{tool_name}: {result}\n"
+                tool_context = "\n\n# TOOL RESULTS\n" + "\n".join(
+                    f"{k}: {v[:500]}{'…' if len(str(v)) > 500 else ''}" for k, v in tool_results.items()
+                )
                 messages.append({"role": "system", "content": tool_context})
         
         # Generate response
