@@ -1024,6 +1024,21 @@ class OpenWebUIMemoryBot(commands.Cog):
             entry.access_count += 1
             entry.last_accessed = datetime.now()
         
+        # Fallback: simple keyword match if hybrid returns nothing
+        if not results:
+            try:
+                query_tokens = set(self._normalize_text(query).split())
+                keyword_hits: List[Tuple[int, MemoryEntry]] = []
+                for entry in candidates:
+                    doc_tokens = self._normalize_text(entry.text).split()
+                    overlap = len(query_tokens.intersection(doc_tokens))
+                    if overlap > 0:
+                        keyword_hits.append((overlap, entry))
+                keyword_hits.sort(key=lambda x: x[0], reverse=True)
+                results = [e for _, e in keyword_hits[:limit]]
+            except Exception:
+                pass
+        
         return results
 
     # ───────────────── backend helpers ───────────
