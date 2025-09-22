@@ -260,12 +260,14 @@ class OpenWebUIMemoryBot(commands.Cog):
         self.analytics_task: Optional[asyncio.Task] = None
         
         # Database connections
-        self.db_path = self.cog_data_path() / "memories.db"
+        self.db_path = None  # Will be set in cog_load
         self.db_lock = threading.Lock()
 
     # ───────────────── lifecycle ─────────────────
     async def cog_load(self):
         """Initialize the enhanced AI assistant with all background tasks."""
+        # Set database path now that cog is loaded
+        self.db_path = self.cog_data_path() / "memories.db"
         await self._initialize_database()
         await self._load_persistent_data()
         await self._initialize_tools()
