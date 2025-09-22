@@ -2267,25 +2267,6 @@ class OpenWebUIMemoryBot(commands.Cog):
         for page in pagify(text):
             await ctx.send(page)
 
-    # Nested under knowledge for intuitive usage
-    @knowledge.group(name="faq")
-    @commands.is_owner()
-    async def knowledge_faq(self, ctx: commands.Context):
-        """Manage server FAQs (under knowledge)."""
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help()
-
-    @knowledge_faq.command(name="add")
-    async def knowledge_faq_add(self, ctx: commands.Context, question: str, *, answer: str):
-        return await self.faq_add(ctx, question, answer=answer)
-
-    @knowledge_faq.command(name="remove")
-    async def knowledge_faq_remove(self, ctx: commands.Context, *, question: str):
-        return await self.faq_remove(ctx, question=question)
-
-    @knowledge_faq.command(name="list")
-    async def knowledge_faq_list(self, ctx: commands.Context):
-        return await self.faq_list(ctx)
 
     @openwebui.group(name="rules")
     @commands.is_owner()
@@ -2361,24 +2342,6 @@ class OpenWebUIMemoryBot(commands.Cog):
         for page in pagify(text):
             await ctx.send(page)
 
-    # Nested under knowledge for intuitive usage
-    @knowledge.group(name="rules")
-    @commands.is_owner()
-    async def knowledge_rules(self, ctx: commands.Context):
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help()
-
-    @knowledge_rules.command(name="add")
-    async def knowledge_rules_add(self, ctx: commands.Context, *, rule: str):
-        return await self.rules_add(ctx, rule=rule)
-
-    @knowledge_rules.command(name="remove")
-    async def knowledge_rules_remove(self, ctx: commands.Context, rule_number: int):
-        return await self.rules_remove(ctx, rule_number=rule_number)
-
-    @knowledge_rules.command(name="list")
-    async def knowledge_rules_list(self, ctx: commands.Context):
-        return await self.rules_list(ctx)
 
     @openwebui.group(name="projects")
     @commands.is_owner()
@@ -2452,24 +2415,6 @@ class OpenWebUIMemoryBot(commands.Cog):
         for page in pagify(text):
             await ctx.send(page)
 
-    # Nested under knowledge for intuitive usage
-    @knowledge.group(name="projects")
-    @commands.is_owner()
-    async def knowledge_projects(self, ctx: commands.Context):
-        if ctx.invoked_subcommand is None:
-            await ctx.send_help()
-
-    @knowledge_projects.command(name="add")
-    async def knowledge_projects_add(self, ctx: commands.Context, project_name: str, *, description: str):
-        return await self.projects_add(ctx, project_name=project_name, description=description)
-
-    @knowledge_projects.command(name="remove")
-    async def knowledge_projects_remove(self, ctx: commands.Context, *, project_name: str):
-        return await self.projects_remove(ctx, project_name=project_name)
-
-    @knowledge_projects.command(name="list")
-    async def knowledge_projects_list(self, ctx: commands.Context):
-        return await self.projects_list(ctx)
 
     @knowledge.command(name="search")
     async def knowledge_search(self, ctx: commands.Context, *, query: str):
