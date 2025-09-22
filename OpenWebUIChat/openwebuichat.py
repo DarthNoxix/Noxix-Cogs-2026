@@ -1921,6 +1921,8 @@ class OpenWebUIMemoryBot(commands.Cog):
     @openwebuimemory.command(name="ttl")
     async def memory_ttl(self, ctx, hours: int = None):
         """Set or view memory TTL (Time To Live) in hours."""
+        global MEMORY_TTL_HOURS
+        
         if hours is None:
             current_ttl = MEMORY_TTL_HOURS
             await ctx.send(f"Current memory TTL: **{current_ttl} hours**")
@@ -1929,7 +1931,6 @@ class OpenWebUIMemoryBot(commands.Cog):
                 return await ctx.send("❌ TTL must be between 1 and 8760 hours (1 year).")
             
             # Update global TTL constant (in a real implementation, this would be configurable)
-            global MEMORY_TTL_HOURS
             MEMORY_TTL_HOURS = hours
             await ctx.send(f"✅ Memory TTL set to **{hours} hours**")
 

@@ -7,12 +7,9 @@
   "tags": ["ai", "llm", "chat", "openwebui", "assistant", "embeddings", "functions"],
   "requirements": [
     "httpx>=0.25",
-    "chromadb",
     "numpy",
     "rank-bm25",
-    "aiofiles",
-    "pydantic",
-    "orjson"
+    "aiofiles"
   ],
   "required_cogs": {},
   "type": "COG",
