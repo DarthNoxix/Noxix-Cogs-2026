@@ -48,6 +48,8 @@ A comprehensive absence management system for Discord servers that automatically
 [p]absence quickadd @user indefinite Personal reasons
 ```
 
+*Note: The absence start date is automatically set to when the command is executed. All timestamps are displayed in your local timezone using Discord's relative time format (e.g., "2 hours ago", "in 3 days").*
+
 **Modal Method:**
 When you use `[p]absence add @user`, a modal will open where you can:
 - Enter a reason (optional)

@@ -141,8 +141,9 @@ class AbsenceManager(commands.Cog):
                 "🌟 No active absences at this time. 🌟"
             )
             embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/✅.png")
+            current_timestamp = int(current_time.timestamp())
             embed.set_footer(
-                text="🔄 Auto-updated • 💎 Premium Management System",
+                text=f"🔄 Auto-updated <t:{current_timestamp}:R> • 💎 Premium Management System",
                 icon_url="https://cdn.discordapp.com/emojis/🔄.png"
             )
             return embed
@@ -160,13 +161,14 @@ class AbsenceManager(commands.Cog):
                 status_color = "🟡"
             elif end_date:
                 if current_time > end_date:
+                    end_timestamp = int(end_date.timestamp())
                     status_emoji = "⏰"
-                    status_text = f"**Expired** (was until {end_date.strftime('%B %d, %Y')})"
+                    status_text = f"**Expired** (was until <t:{end_timestamp}:d>)"
                     status_color = "🔴"
                 else:
-                    time_left = humanize_timedelta(timedelta=end_date - current_time)
+                    end_timestamp = int(end_date.timestamp())
                     status_emoji = "⏳"
-                    status_text = f"**Until {end_date.strftime('%B %d, %Y')}** ({time_left} remaining)"
+                    status_text = f"**Until <t:{end_timestamp}:R>**"
                     status_color = "🟠"
             else:
                 status_emoji = "❓"
@@ -182,9 +184,10 @@ class AbsenceManager(commands.Cog):
             if reason:
                 field_value += f"\n💭 *{reason}*"
             
-            # Add start date
+            # Add start date with relative timestamp
             if start_date:
-                field_value += f"\n📅 Started: {start_date.strftime('%B %d, %Y at %I:%M %p')}"
+                timestamp = int(start_date.timestamp())
+                field_value += f"\n📅 Started: <t:{timestamp}:R>"
             
             # Add user avatar as field icon
             embed.add_field(
@@ -194,8 +197,9 @@ class AbsenceManager(commands.Cog):
             )
         
         # Add beautiful footer with statistics
+        current_timestamp = int(current_time.timestamp())
         embed.set_footer(
-            text=f"📊 {len(guild_absences)} active absence{'s' if len(guild_absences) != 1 else ''} • 🔄 Auto-updated • 💎 Premium Management",
+            text=f"📊 {len(guild_absences)} active absence{'s' if len(guild_absences) != 1 else ''} • 🔄 Auto-updated <t:{current_timestamp}:R> • 💎 Premium Management",
             icon_url="https://cdn.discordapp.com/emojis/📊.png"
         )
         
@@ -354,7 +358,7 @@ class AbsenceManager(commands.Cog):
             
         try:
             # Parse duration
-            start_date = datetime.utcnow()
+            current_time = datetime.utcnow()
             end_date = None
             is_indefinite = False
             
@@ -373,13 +377,13 @@ class AbsenceManager(commands.Cog):
                     time_str = duration_lower[4:].strip()
                     if "day" in time_str:
                         days = int(time_str.split()[0])
-                        end_date = start_date + timedelta(days=days)
+                        end_date = current_time + timedelta(days=days)
                     elif "week" in time_str:
                         weeks = int(time_str.split()[0])
-                        end_date = start_date + timedelta(weeks=weeks)
+                        end_date = current_time + timedelta(weeks=weeks)
                     elif "month" in time_str:
                         months = int(time_str.split()[0])
-                        end_date = start_date + timedelta(days=months * 30)
+                        end_date = current_time + timedelta(days=months * 30)
                     else:
                         raise ValueError("Invalid time unit")
                 except (ValueError, IndexError):
@@ -389,8 +393,8 @@ class AbsenceManager(commands.Cog):
                 await ctx.send("❌ Invalid duration format. Use 'until YYYY-MM-DD', 'for X days', or 'indefinite'.")
                 return
             
-            # Add absence
-            await self._add_absence(user, reason, start_date, end_date, is_indefinite, ctx.author)
+            # Add absence (start_date will be set to current time in _add_absence)
+            await self._add_absence(user, reason, current_time, end_date, is_indefinite, ctx.author)
             
             embed = discord.Embed(
                 title="✨ Absence Added Successfully! ✨",
@@ -553,15 +557,17 @@ class AbsenceManager(commands.Cog):
     async def _add_absence(self, user: discord.Member, reason: str, start_date: datetime, 
                           end_date: Optional[datetime], is_indefinite: bool, added_by: discord.Member):
         """Add a new absence record."""
-        absence_id = f"{user.guild.id}_{user.id}_{int(start_date.timestamp())}"
+        # Use current time as start date (when command was executed)
+        current_time = datetime.utcnow()
+        absence_id = f"{user.guild.id}_{user.id}_{int(current_time.timestamp())}"
         
         await self.config.custom("ABSENCE", absence_id).user_id.set(user.id)
         await self.config.custom("ABSENCE", absence_id).reason.set(reason)
-        await self.config.custom("ABSENCE", absence_id).start_date.set(start_date.isoformat())
+        await self.config.custom("ABSENCE", absence_id).start_date.set(current_time.isoformat())
         await self.config.custom("ABSENCE", absence_id).end_date.set(end_date.isoformat() if end_date else None)
         await self.config.custom("ABSENCE", absence_id).is_indefinite.set(is_indefinite)
         await self.config.custom("ABSENCE", absence_id).added_by.set(added_by.id)
-        await self.config.custom("ABSENCE", absence_id).added_at.set(datetime.utcnow().isoformat())
+        await self.config.custom("ABSENCE", absence_id).added_at.set(current_time.isoformat())
         
         # Update embed
         await self._update_absence_embed(user.guild)
@@ -602,7 +608,7 @@ class AbsenceAddModal(discord.ui.Modal):
             duration = self.duration_input.value.strip().lower()
             
             # Parse duration
-            start_date = datetime.utcnow()
+            current_time = datetime.utcnow()
             end_date = None
             is_indefinite = False
             
@@ -623,13 +629,13 @@ class AbsenceAddModal(discord.ui.Modal):
                     time_str = duration[4:].strip()
                     if "day" in time_str:
                         days = int(time_str.split()[0])
-                        end_date = start_date + timedelta(days=days)
+                        end_date = current_time + timedelta(days=days)
                     elif "week" in time_str:
                         weeks = int(time_str.split()[0])
-                        end_date = start_date + timedelta(weeks=weeks)
+                        end_date = current_time + timedelta(weeks=weeks)
                     elif "month" in time_str:
                         months = int(time_str.split()[0])
-                        end_date = start_date + timedelta(days=months * 30)
+                        end_date = current_time + timedelta(days=months * 30)
                     else:
                         raise ValueError("Invalid time unit")
                 except (ValueError, IndexError):
@@ -645,9 +651,9 @@ class AbsenceAddModal(discord.ui.Modal):
                 )
                 return
             
-            # Add absence
+            # Add absence (start_date will be set to current time in _add_absence)
             await self.cog._add_absence(
-                self.user, reason, start_date, end_date, is_indefinite, interaction.user
+                self.user, reason, current_time, end_date, is_indefinite, interaction.user
             )
             
             embed = discord.Embed(
@@ -829,7 +835,7 @@ class QuickAddModal(discord.ui.Modal):
             duration = self.duration_input.value.strip().lower()
             reason = self.reason_input.value.strip()
             
-            start_date = datetime.utcnow()
+            current_time = datetime.utcnow()
             end_date = None
             is_indefinite = False
             
@@ -850,13 +856,13 @@ class QuickAddModal(discord.ui.Modal):
                     time_str = duration[4:].strip()
                     if "day" in time_str:
                         days = int(time_str.split()[0])
-                        end_date = start_date + timedelta(days=days)
+                        end_date = current_time + timedelta(days=days)
                     elif "week" in time_str:
                         weeks = int(time_str.split()[0])
-                        end_date = start_date + timedelta(weeks=weeks)
+                        end_date = current_time + timedelta(weeks=weeks)
                     elif "month" in time_str:
                         months = int(time_str.split()[0])
-                        end_date = start_date + timedelta(days=months * 30)
+                        end_date = current_time + timedelta(days=months * 30)
                     else:
                         raise ValueError("Invalid time unit")
                 except (ValueError, IndexError):
@@ -872,9 +878,9 @@ class QuickAddModal(discord.ui.Modal):
                 )
                 return
             
-            # Add absence
+            # Add absence (start_date will be set to current time in _add_absence)
             await self.cog._add_absence(
-                user, reason, start_date, end_date, is_indefinite, interaction.user
+                user, reason, current_time, end_date, is_indefinite, interaction.user
             )
             
             embed = discord.Embed(
