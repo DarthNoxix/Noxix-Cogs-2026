@@ -292,9 +292,14 @@ class AbsenceManager(commands.Cog):
         if not await self._check_authorization(ctx):
             return
             
-        # Create modal for absence details
-        modal = AbsenceAddModal(self, user, reason)
-        await ctx.send_modal(modal)
+        # Create a view with a button to open the modal
+        view = AbsenceAddView(self, user, reason)
+        embed = discord.Embed(
+            title="➕ Add Absence",
+            description=f"Click the button below to add an absence for {user.mention}.",
+            color=0x3498db
+        )
+        await ctx.send(embed=embed, view=view)
 
     @absence.command(name="remove")
     async def absence_remove(self, ctx: commands.Context, user: discord.Member):
@@ -384,13 +389,23 @@ class AbsenceManager(commands.Cog):
         view = ConfigView(self, ctx.guild)
         await ctx.send(embed=embed, view=view)
 
-    async def _check_authorization(self, ctx: commands.Context) -> bool:
+    async def _check_authorization(self, ctx_or_interaction: Union[commands.Context, discord.Interaction]) -> bool:
         """Check if user is authorized to manage absences."""
-        if ctx.author.guild_permissions.administrator:
+        # Handle both Context and Interaction objects
+        if isinstance(ctx_or_interaction, discord.Interaction):
+            user = ctx_or_interaction.user
+            guild = ctx_or_interaction.guild
+            is_admin = user.guild_permissions.administrator
+        else:
+            user = ctx_or_interaction.author
+            guild = ctx_or_interaction.guild
+            is_admin = user.guild_permissions.administrator
+            
+        if is_admin:
             return True
             
-        authorized_roles = await self.config.guild(ctx.guild).authorized_roles()
-        user_roles = [role.id for role in ctx.author.roles]
+        authorized_roles = await self.config.guild(guild).authorized_roles()
+        user_roles = [role.id for role in user.roles]
         
         if any(role_id in user_roles for role_id in authorized_roles):
             return True
@@ -400,7 +415,11 @@ class AbsenceManager(commands.Cog):
             description="You don't have permission to manage absences.",
             color=0xe74c3c
         )
-        await ctx.send(embed=embed)
+        
+        if isinstance(ctx_or_interaction, discord.Interaction):
+            await ctx_or_interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await ctx_or_interaction.send(embed=embed)
         return False
 
     async def _add_absence(self, user: discord.Member, reason: str, start_date: datetime, 
@@ -518,6 +537,30 @@ class AbsenceAddModal(discord.ui.Modal):
             )
 
 
+class AbsenceAddView(discord.ui.View):
+    """View with button to open absence add modal."""
+    
+    def __init__(self, cog: AbsenceManager, user: discord.Member, initial_reason: str = ""):
+        self.cog = cog
+        self.user = user
+        self.initial_reason = initial_reason
+        super().__init__(timeout=300)
+
+    @discord.ui.button(label="Open Absence Form", style=discord.ButtonStyle.primary, emoji="📝")
+    async def open_modal_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Button to open the absence add modal."""
+        if not await self.cog._check_authorization(interaction):
+            return
+            
+        modal = AbsenceAddModal(self.cog, self.user, self.initial_reason)
+        await interaction.response.send_modal(modal)
+
+    async def on_timeout(self):
+        """Handle view timeout."""
+        for item in self.children:
+            item.disabled = True
+
+
 class AbsenceManagementView(discord.ui.View):
     """View with buttons for absence management."""
     
@@ -552,23 +595,6 @@ class AbsenceManagementView(discord.ui.View):
         await interaction.response.defer()
         await self.cog._update_absence_embed(self.guild)
         await interaction.followup.send("✅ Embed refreshed!", ephemeral=True)
-
-    async def _check_authorization(self, interaction: discord.Interaction) -> bool:
-        """Check if user is authorized to manage absences."""
-        if interaction.user.guild_permissions.administrator:
-            return True
-            
-        authorized_roles = await self.cog.config.guild(self.guild).authorized_roles()
-        user_roles = [role.id for role in interaction.user.roles]
-        
-        if any(role_id in user_roles for role_id in authorized_roles):
-            return True
-            
-        await interaction.response.send_message(
-            "❌ You don't have permission to manage absences.",
-            ephemeral=True
-        )
-        return False
 
 
 class UserSelectModal(discord.ui.Modal):
