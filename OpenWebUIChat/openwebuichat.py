@@ -2522,6 +2522,29 @@ class OpenWebUIMemoryBot(commands.Cog):
                     await ctx.send(page)
                 return
             return await ctx.send("No relevant information found in the server's knowledge base.")
+
+    @knowledge.command(name="grep")
+    async def knowledge_grep(self, ctx: commands.Context, *, query: str):
+        """Directly grep FAQs, rules, and projects for a substring."""
+        if not ctx.guild:
+            return await ctx.send("This command can only be used in a server.")
+        guild_kb = await self.get_guild_knowledge_base(ctx.guild.id)
+        ql = query.lower()
+        hits: List[str] = []
+        for q, a in (guild_kb.faqs or {}).items():
+            if ql in q.lower() or ql in a.lower():
+                hits.append(f"FAQ: {q}\n   {a[:200]}{'...' if len(a) > 200 else ''}")
+        for i, rule in enumerate(guild_kb.house_rules or [], 1):
+            if ql in rule.lower():
+                hits.append(f"House Rule {i}: {rule}")
+        for name, desc in (guild_kb.project_docs or {}).items():
+            if ql in name.lower() or ql in desc.lower():
+                hits.append(f"Project: {name}\n   {desc[:200]}{'...' if len(desc) > 200 else ''}")
+        if not hits:
+            return await ctx.send("No matches.")
+        text = f"**Grep results for '{query}':**\n\n" + "\n\n".join(hits[:10])
+        for page in pagify(text):
+            await ctx.send(page)
         
         search_results = []
         for i, entry in enumerate(results, 1):
