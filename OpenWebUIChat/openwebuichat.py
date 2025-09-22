@@ -158,8 +158,8 @@ class ConversationTurn:
 class RateLimitInfo:
     user_id: int
     requests: List[datetime]
-    burst_allowance: int = 5
     last_reset: datetime
+    burst_allowance: int = 5
 
 @cog_i18n(_)
 class OpenWebUIMemoryBot(commands.Cog):
