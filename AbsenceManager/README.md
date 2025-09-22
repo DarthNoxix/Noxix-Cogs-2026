@@ -19,6 +19,8 @@ A comprehensive absence management system for Discord servers that automatically
 3. Configure authorized roles: `[p]absence role @RoleName`
 4. Start managing absences!
 
+**Note**: If you encounter any errors, try reloading the cog with `[p]reload AbsenceManager`
+
 ## Commands
 
 ### Setup Commands

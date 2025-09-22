@@ -527,7 +527,7 @@ class AbsenceAddModal(discord.ui.Modal):
                 description=f"Absence for {self.user.mention} has been added successfully.",
                 color=0x2ecc71
             )
-            await interaction.followup.send(embed=embed)
+            await interaction.followup.send(embed=embed, ephemeral=True)
             
         except Exception as e:
             log.error(f"Error adding absence: {e}")
@@ -641,8 +641,14 @@ class UserSelectModal(discord.ui.Modal):
                 return
             
             if self.action == "Add Absence":
-                modal = AbsenceAddModal(self.cog, user)
-                await interaction.followup.send_modal(modal)
+                # Create a new view with button to open modal
+                view = AbsenceAddView(self.cog, user)
+                embed = discord.Embed(
+                    title="➕ Add Absence",
+                    description=f"Click the button below to add an absence for {user.mention}.",
+                    color=0x3498db
+                )
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
             elif self.action == "Remove Absence":
                 # Remove absence
                 absences = await self.cog.config.custom("ABSENCE").all()
@@ -668,7 +674,7 @@ class UserSelectModal(discord.ui.Modal):
                         color=0xe74c3c
                     )
                     
-                await interaction.followup.send(embed=embed)
+                await interaction.followup.send(embed=embed, ephemeral=True)
                 
         except Exception as e:
             log.error(f"Error in user selection: {e}")
