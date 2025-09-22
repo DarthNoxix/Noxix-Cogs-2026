@@ -141,9 +141,8 @@ class AbsenceManager(commands.Cog):
                 "🌟 No active absences at this time. 🌟"
             )
             embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/✅.png")
-            current_timestamp = int(current_time.timestamp())
             embed.set_footer(
-                text=f"🔄 Auto-updated <t:{current_timestamp}:R> • 💎 Premium Management System",
+                text="🔄 Auto-updated • 💎 Premium Management System",
                 icon_url="https://cdn.discordapp.com/emojis/🔄.png"
             )
             return embed
@@ -197,9 +196,8 @@ class AbsenceManager(commands.Cog):
             )
         
         # Add beautiful footer with statistics
-        current_timestamp = int(current_time.timestamp())
         embed.set_footer(
-            text=f"📊 {len(guild_absences)} active absence{'s' if len(guild_absences) != 1 else ''} • 🔄 Auto-updated <t:{current_timestamp}:R> • 💎 Premium Management",
+            text=f"📊 {len(guild_absences)} active absence{'s' if len(guild_absences) != 1 else ''} • 🔄 Auto-updated • 💎 Premium Management",
             icon_url="https://cdn.discordapp.com/emojis/📊.png"
         )
         
