@@ -1241,9 +1241,9 @@ class OpenWebUIMemoryBot(commands.Cog):
             if hist:
                 max_turns = channel_settings.get("history_max_turns", 20)
                 messages.extend(hist[-(max_turns * 2):])
-        
-        # Add current question
-        messages.append({"role": "user", "content": question})
+
+            # Add current question
+            messages.append({"role": "user", "content": question})
 
         # Check for tool usage
         tools_to_use = await self._determine_tools_to_use(question, guild, channel, user)
@@ -2751,8 +2751,13 @@ class OpenWebUIMemoryBot(commands.Cog):
         """List all available tools."""
         tool_list = []
         for tool_name, tool_info in self.tools.items():
-            description = tool_info.get("description", "No description")
-            category = tool_info.get("category", "general")
+            if isinstance(tool_info, ToolDefinition):
+                description = tool_info.description
+                category = tool_info.category.value if isinstance(tool_info.category, ToolCategory) else str(tool_info.category)
+            else:
+                description = tool_info.get("description", "No description")
+                cat_raw = tool_info.get("category", "general")
+                category = cat_raw.value if isinstance(cat_raw, ToolCategory) else str(cat_raw)
             tool_list.append(f"**{tool_name}** ({category}): {description}")
         
         embed = discord.Embed(
