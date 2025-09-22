@@ -247,15 +247,25 @@ class ChatHandler(MixinMeta):
         elif not to_send and not listener:
             return await message.reply(_("No results found"))
 
+        bot_message = None
         for index, text in enumerate(to_send):
             if index == 0:
-                await send_reply(
+                bot_message = await send_reply(
                     message=message,
                     content=text,
                     conf=conf,
                     files=files,
                     reply=True,
                 )
+                
+                # Add regenerate button to the first message if enabled
+                if conf.enable_regenerate and conf.regenerate_role and bot_message:
+                    from ..views import RegenerateView
+                    regenerate_view = RegenerateView(self, bot_message, conf)
+                    try:
+                        await bot_message.edit(view=regenerate_view)
+                    except discord.HTTPException:
+                        pass  # If we can't edit, just continue
             else:
                 await send_reply(message=message, content=text, conf=conf)
 

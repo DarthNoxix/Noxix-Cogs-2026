@@ -21,6 +21,7 @@ async def send_reply(
     conf: GuildSettings,
     files: Optional[List[discord.File]] = None,
     reply: bool = False,
+    view: Optional[discord.ui.View] = None,
 ):
     """Intelligently send a reply to a message
 
@@ -53,6 +54,7 @@ async def send_reply(
         files: Optional[List[discord.File]] = None,
         as_reply: bool = False,
         mention: bool = False,
+        view: Optional[discord.ui.View] = None,
     ):
         if files is None:
             files = []
@@ -64,21 +66,22 @@ async def send_reply(
                     embeds=embeds,
                     files=files,
                     mention_author=mention,
+                    view=view,
                 )
             except discord.HTTPException:
                 pass
         try:
-            await message.channel.send(content=content, embed=embed, embeds=embeds, files=files)
+            await message.channel.send(content=content, embed=embed, embeds=embeds, files=files, view=view)
         except discord.HTTPException as e:
             log.error("Error sending message", exc_info=e)
 
     # Simple case: Content fits in a single message
     if len(content) <= 2000:
-        return await send(content, files=files, as_reply=reply, mention=conf.mention)
+        return await send(content, files=files, as_reply=reply, mention=conf.mention, view=view)
 
     # Medium case: Content fits in a single embed and we have embed permissions
     elif len(content) <= 4000 and embed_perms and "```" not in content:
-        return await send(embed=discord.Embed(description=content), files=files, as_reply=reply, mention=conf.mention)
+        return await send(embed=discord.Embed(description=content), files=files, as_reply=reply, mention=conf.mention, view=view)
 
     # Long content case without code blocks: Paginate into multiple messages
     elif "```" not in content:
@@ -91,11 +94,12 @@ async def send_reply(
                 kwargs["embed"] = discord.Embed(description=chunk)
             else:
                 kwargs["content"] = chunk
-            # Only include files and mention on first message
+            # Only include files, mention, and view on first message
             if idx == 0:
                 kwargs["mention"] = conf.mention
                 kwargs["files"] = files
                 kwargs["as_reply"] = reply
+                kwargs["view"] = view
             await send(**kwargs)
         return
 
@@ -135,6 +139,7 @@ async def send_reply(
                     kwargs["mention"] = conf.mention
                     kwargs["files"] = files
                     kwargs["as_reply"] = reply
+                    kwargs["view"] = view
                 await send(**kwargs)
         else:
             # For code blocks, pagify the inner content and wrap each chunk
@@ -150,4 +155,5 @@ async def send_reply(
                         kwargs["mention"] = conf.mention
                         kwargs["files"] = files
                         kwargs["as_reply"] = reply
+                        kwargs["view"] = view
                     await send(**kwargs)

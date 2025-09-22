@@ -131,6 +131,10 @@ class GuildSettings(AssistantBaseModel):
     max_function_calls: int = 20  # Max calls in a row
     function_statuses: t.Dict[str, bool] = {}  # {"function_name": True/False for enabled/disabled}
     functions_called: int = 0
+    
+    # Regenerate feature
+    regenerate_role: t.Optional[int] = None  # Role ID that can use regenerate button
+    enable_regenerate: bool = False  # Whether regenerate feature is enabled
 
     def sync_embeddings(self, guild_id: int):
         try:

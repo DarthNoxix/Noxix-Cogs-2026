@@ -1174,3 +1174,96 @@ class MemoryViewer(discord.ui.View):
         if self.current_index >= len(self.memory_list):
             self.current_index = max(0, len(self.memory_list) - 1)
         await self.update_display()
+
+
+class RegenerateView(discord.ui.View):
+    def __init__(self, cog, original_message: discord.Message, conf):
+        super().__init__(timeout=300)  # 5 minute timeout
+        self.cog = cog
+        self.original_message = original_message
+        self.conf = conf
+
+    async def interaction_check(self, interaction: discord.Interaction):
+        # Check if user has the regenerate role
+        if not self.conf.enable_regenerate or not self.conf.regenerate_role:
+            await interaction.response.send_message(_("Regenerate feature is not enabled!"), ephemeral=True)
+            return False
+        
+        user = interaction.user
+        if not isinstance(user, discord.Member):
+            await interaction.response.send_message(_("This feature is only available in servers!"), ephemeral=True)
+            return False
+        
+        regenerate_role = interaction.guild.get_role(self.conf.regenerate_role)
+        if not regenerate_role:
+            await interaction.response.send_message(_("Regenerate role has been deleted! Please contact an administrator."), ephemeral=True)
+            return False
+        
+        if regenerate_role not in user.roles:
+            await interaction.response.send_message(_("You don't have permission to use the regenerate button!"), ephemeral=True)
+            return False
+        
+        return True
+
+    @discord.ui.button(label="🔄 Regenerate", style=discord.ButtonStyle.secondary, emoji="🔄")
+    async def regenerate_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        
+        try:
+            # Disable the button to prevent multiple clicks
+            button.disabled = True
+            button.label = "⏳ Regenerating..."
+            await interaction.edit_original_response(view=self)
+            
+            # Get the original user's message that triggered the bot response
+            original_user_message = None
+            if hasattr(self.original_message, 'reference') and self.original_message.reference:
+                original_user_message = self.original_message.reference.resolved
+            
+            if not original_user_message:
+                # If no reference, try to find the message that this is replying to
+                # Look for messages in the channel around the same time
+                async for message in interaction.channel.history(limit=20, before=self.original_message):
+                    if message.author.id != self.cog.bot.user.id and message.created_at < self.original_message.created_at:
+                        # Check if this message is likely the trigger (most recent non-bot message before the bot response)
+                        original_user_message = message
+                        break
+            
+            if not original_user_message:
+                await interaction.followup.send(_("Could not find the original message to regenerate from!"), ephemeral=True)
+                return
+            
+            # Regenerate the response
+            new_response = await self.cog.get_chat_response(
+                message=original_user_message.content,
+                author=original_user_message.author,
+                guild=interaction.guild,
+                channel=interaction.channel,
+                conf=self.conf,
+                message_obj=original_user_message
+            )
+            
+            if new_response is None:
+                await interaction.followup.send(_("Failed to generate a new response!"), ephemeral=True)
+                return
+            
+            # Edit the original bot message with the new response
+            await self.original_message.edit(content=new_response)
+            
+            # Update button to show success
+            button.label = "✅ Regenerated"
+            button.style = discord.ButtonStyle.success
+            await interaction.edit_original_response(view=self)
+            
+            # Send confirmation
+            await interaction.followup.send(_("Response regenerated successfully! ✨"), ephemeral=True)
+            
+        except Exception as e:
+            # Reset button on error
+            button.disabled = False
+            button.label = "🔄 Regenerate"
+            button.style = discord.ButtonStyle.secondary
+            await interaction.edit_original_response(view=self)
+            
+            await interaction.followup.send(_("An error occurred while regenerating: {}").format(str(e)), ephemeral=True)
+            self.cog.log.error("Error in regenerate button", exc_info=e)

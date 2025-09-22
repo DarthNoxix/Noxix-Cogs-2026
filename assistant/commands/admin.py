@@ -396,6 +396,30 @@ class Admin(MixinMeta):
                 if field:
                     embed.add_field(name=_("Max Response Token Role Overrides"), value=field, inline=False)
 
+            # Regenerate settings
+            if conf.enable_regenerate and conf.regenerate_role:
+                regenerate_role = ctx.guild.get_role(conf.regenerate_role)
+                if regenerate_role:
+                    embed.add_field(
+                        name=_("Regenerate Feature"), 
+                        value=_("**Enabled** - Role: {}").format(regenerate_role.mention), 
+                        inline=False
+                    )
+                else:
+                    embed.add_field(
+                        name=_("Regenerate Feature"), 
+                        value=_("**Enabled** - Role: (deleted role)"), 
+                        inline=False
+                    )
+            elif conf.regenerate_role:
+                regenerate_role = ctx.guild.get_role(conf.regenerate_role)
+                if regenerate_role:
+                    embed.add_field(
+                        name=_("Regenerate Feature"), 
+                        value=_("**Disabled** - Role: {}").format(regenerate_role.mention), 
+                        inline=False
+                    )
+
         if ctx.author.id in self.bot.owner_ids:
             if self.db.brave_api_key:
                 value = _("Your Brave websearch API key is set!")
@@ -2104,6 +2128,60 @@ class Admin(MixinMeta):
         else:
             conf.max_time_role_override[role.id] = retention_seconds
             await ctx.send(_("Max retention time override for {} added!").format(role.mention))
+        await self.save_conf()
+
+    @assistant.command(name="regeneraterole")
+    async def regenerate_role(self, ctx: commands.Context, *, role: discord.Role = None):
+        """
+        Set or remove the role that can use the regenerate button
+        
+        Only users with this role will be able to press the regenerate button on bot responses.
+        Specify the same role to remove it.
+        """
+        conf = self.db.get_conf(ctx.guild)
+        
+        if role is None:
+            if conf.regenerate_role:
+                current_role = ctx.guild.get_role(conf.regenerate_role)
+                if current_role:
+                    await ctx.send(_("Current regenerate role: {}").format(current_role.mention))
+                else:
+                    await ctx.send(_("Regenerate role is set to a deleted role. Use this command with a role to set a new one."))
+            else:
+                await ctx.send(_("No regenerate role is currently set."))
+            return
+        
+        if conf.regenerate_role == role.id:
+            conf.regenerate_role = None
+            conf.enable_regenerate = False
+            await ctx.send(_("Regenerate role removed! Regenerate feature is now disabled."))
+        else:
+            conf.regenerate_role = role.id
+            conf.enable_regenerate = True
+            await ctx.send(_("Regenerate role set to {}! Regenerate feature is now enabled.").format(role.mention))
+        
+        await self.save_conf()
+
+    @assistant.command(name="toggleregenerate")
+    async def toggle_regenerate(self, ctx: commands.Context):
+        """
+        Toggle the regenerate feature on/off
+        
+        This will enable/disable the regenerate button on bot responses.
+        You must set a regenerate role first using `[p]assistant regeneraterole`.
+        """
+        conf = self.db.get_conf(ctx.guild)
+        
+        if not conf.regenerate_role:
+            return await ctx.send(_("You must set a regenerate role first using `{}assistant regeneraterole`!").format(ctx.prefix))
+        
+        if conf.enable_regenerate:
+            conf.enable_regenerate = False
+            await ctx.send(_("Regenerate feature has been **disabled**."))
+        else:
+            conf.enable_regenerate = True
+            await ctx.send(_("Regenerate feature has been **enabled**."))
+        
         await self.save_conf()
 
     @assistant.command(name="verbosity")
