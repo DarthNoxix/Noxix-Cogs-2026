@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Union
 
 import aiohttp
 import discord
+import contextlib
 from redbot.core import Config, commands
 from redbot.core.bot import Red
 from redbot.core.utils.chat_formatting import box, pagify
@@ -223,7 +224,7 @@ class KnowledgeBot(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="feedback", aliases=["submit", "ticket"])
+    @commands.command(name="ask", aliases=["question", "feedback", "submit", "ticket"])
     @commands.guild_only()
     async def submit_feedback(self, ctx: commands.Context, *, feedback: str):
         """
@@ -248,42 +249,33 @@ class KnowledgeBot(commands.Cog):
             if submission_channel:
                 return await ctx.send(f"Please submit feedback in {submission_channel.mention}")
         
-        # Show processing message
-        processing_embed = discord.Embed(
-            title="Processing Feedback",
-            description="🤖 Analyzing your feedback with AI...",
-            color=discord.Color.blue()
-        )
-        processing_msg = await ctx.send(embed=processing_embed)
-        
         try:
             # Send feedback to n8n for processing (fire-and-forget)
             success = await self.send_to_n8n(ctx, feedback, conf["n8n_webhook_url"])
 
             if not success:
-                error_embed = discord.Embed(
-                    title="Error",
-                    description="❌ Failed to process feedback through n8n. Please try again.",
-                    color=discord.Color.red()
-                )
-                return await processing_msg.edit(embed=error_embed)
-            
-            # Let users know the workflow will reply in Discord
-            result_embed = discord.Embed(
-                title="Feedback Submitted",
-                description="✅ Sent to n8n. The workflow will reply in this channel.",
-                color=discord.Color.green(),
-            )
-            await processing_msg.edit(embed=result_embed)
+                # React with ❌ on failure
+                with contextlib.suppress(discord.Forbidden, discord.HTTPException):
+                    await ctx.message.add_reaction("❌")
+                return
+
+            # React with ✅ to indicate it was sent to n8n
+            try:
+                await ctx.message.add_reaction("✅")
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+
+            # Remove the bot's reaction after 30 seconds
+            try:
+                await asyncio.sleep(30)
+                await ctx.message.remove_reaction("✅", ctx.me)
+            except (discord.Forbidden, discord.HTTPException):
+                pass
             
         except Exception as e:
             log.error(f"Error processing feedback: {e}", exc_info=True)
-            error_embed = discord.Embed(
-                title="Error",
-                description="❌ An error occurred while processing your feedback. Please try again.",
-                color=discord.Color.red()
-            )
-            await processing_msg.edit(embed=error_embed)
+            with contextlib.suppress(discord.Forbidden, discord.HTTPException):
+                await ctx.message.add_reaction("❌")
 
     async def send_to_n8n(self, ctx: commands.Context, feedback: str, webhook_url: str) -> bool:
         """
