@@ -257,51 +257,24 @@ class KnowledgeBot(commands.Cog):
         processing_msg = await ctx.send(embed=processing_embed)
         
         try:
-            # Send feedback to n8n for processing (and wait for reply)
-            n8n_reply = await self.send_to_n8n(ctx, feedback, conf["n8n_webhook_url"])
+            # Send feedback to n8n for processing (fire-and-forget)
+            success = await self.send_to_n8n(ctx, feedback, conf["n8n_webhook_url"])
 
-            if not n8n_reply:
+            if not success:
                 error_embed = discord.Embed(
                     title="Error",
                     description="❌ Failed to process feedback through n8n. Please try again.",
-                    color=discord.Color.red(),
+                    color=discord.Color.red()
                 )
                 return await processing_msg.edit(embed=error_embed)
-
-            # If n8n returned embeds, send them; otherwise send text
-            content = n8n_reply.get("output") or n8n_reply.get("text") or "Processed."
-            embeds_payload = n8n_reply.get("embeds")
-            files_payload = n8n_reply.get("files")
-
-            # Edit the processing message to the final response
-            if embeds_payload:
-                embeds: list[discord.Embed] = []
-                for em in embeds_payload:
-                    embed = discord.Embed(
-                        title=em.get("title")[:256] if em.get("title") else None,
-                        description=em.get("description")[:4096] if em.get("description") else None,
-                        color=em.get("color", discord.Color.blue().value),
-                    )
-                    if em.get("fields"):
-                        for f in em["fields"][:25]:
-                            embed.add_field(
-                                name=str(f.get("name", "Field"))[:256],
-                                value=str(f.get("value", ""))[:1024],
-                                inline=bool(f.get("inline", False)),
-                            )
-                    embeds.append(embed)
-                await processing_msg.edit(content=content or None, embed=None)
-                await ctx.send(content=content or None, embeds=embeds)
-            else:
-                await processing_msg.edit(content=content, embed=None)
-
-            # If files are returned as URLs, post them
-            if files_payload:
-                for url in files_payload[:10]:
-                    try:
-                        await ctx.send(url)
-                    except Exception:
-                        pass
+            
+            # Let users know the workflow will reply in Discord
+            result_embed = discord.Embed(
+                title="Feedback Submitted",
+                description="✅ Sent to n8n. The workflow will reply in this channel.",
+                color=discord.Color.green(),
+            )
+            await processing_msg.edit(embed=result_embed)
             
         except Exception as e:
             log.error(f"Error processing feedback: {e}", exc_info=True)
@@ -312,22 +285,25 @@ class KnowledgeBot(commands.Cog):
             )
             await processing_msg.edit(embed=error_embed)
 
-    async def send_to_n8n(self, ctx: commands.Context, feedback: str, webhook_url: str) -> Optional[dict]:
+    async def send_to_n8n(self, ctx: commands.Context, feedback: str, webhook_url: str) -> bool:
         """
         Send feedback to n8n webhook for processing.
         
-        Returns JSON dict from n8n (expects keys like 'output', 'embeds'), or None on failure.
+        Returns True if webhook accepted (HTTP 200), otherwise False.
         """
         try:
-            # Prepare the payload that matches your n8n workflow
+            # Payload aligned to your Set node (Map Discord -> Chat format)
+            # It expects: content, channelId, authorId
             payload = {
-                "feedback": feedback,
+                "content": feedback,
+                "channelId": ctx.channel.id,
+                "authorId": ctx.author.id,
+                # Extra context (available if you want in the workflow)
                 "user_id": ctx.author.id,
                 "username": ctx.author.name,
                 "discriminator": ctx.author.discriminator,
                 "guild_id": ctx.guild.id,
                 "guild_name": ctx.guild.name,
-                "channel_id": ctx.channel.id,
                 "channel_name": ctx.channel.name,
                 "timestamp": datetime.utcnow().isoformat(),
                 "message_id": ctx.message.id
@@ -340,25 +316,18 @@ class KnowledgeBot(commands.Cog):
                     headers={"Content-Type": "application/json"},
                     timeout=aiohttp.ClientTimeout(total=30)
                 ) as response:
-                    if response.status != 200:
-                        log.error(f"n8n webhook returned status {response.status}")
-                        return None
-                    # Try to parse JSON response from n8n Respond to Webhook
-                    try:
-                        data = await response.json(content_type=None)
-                    except Exception:
-                        text = await response.text()
-                        # Fallback: wrap raw text
-                        data = {"output": text}
-                    log.info(f"Received n8n reply for user {ctx.author.id}")
-                    return data
+                    if response.status == 200:
+                        log.info(f"Sent to n8n for user {ctx.author.id}")
+                        return True
+                    log.error(f"n8n webhook returned status {response.status}")
+                    return False
                         
         except asyncio.TimeoutError:
             log.error("Timeout sending feedback to n8n webhook")
-            return None
+            return False
         except Exception as e:
             log.error(f"Error sending feedback to n8n: {e}", exc_info=True)
-            return None
+            return False
 
 
     @knowledgebot.command(name="test")
@@ -377,22 +346,17 @@ class KnowledgeBot(commands.Cog):
         processing_msg = await ctx.send(embed=processing_embed)
         
         try:
-            reply = await self.send_to_n8n(ctx, test_feedback, conf["n8n_webhook_url"])
+            ok = await self.send_to_n8n(ctx, test_feedback, conf["n8n_webhook_url"])
 
-            if reply:
+            if ok:
                 result_embed = discord.Embed(
                     title="n8n Connection Test Successful",
-                    description="✅ Received a response from n8n!",
+                    description="✅ Webhook accepted by n8n. The workflow should post a reply.",
                     color=discord.Color.green()
                 )
                 result_embed.add_field(
                     name="Test Feedback",
                     value=test_feedback,
-                    inline=False
-                )
-                result_embed.add_field(
-                    name="Response Preview",
-                    value=str(reply.get("output") or reply.get("text") or "(no text) ")[:1000],
                     inline=False
                 )
             else:
