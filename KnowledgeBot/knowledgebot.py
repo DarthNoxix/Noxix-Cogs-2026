@@ -298,6 +298,9 @@ class KnowledgeBot(commands.Cog):
                 "content": feedback,
                 "channelId": ctx.channel.id,
                 "authorId": ctx.author.id,
+                # Recommended session id for n8n Simple Memory
+                # per-user-in-channel conversation key
+                "sessionId": f"{ctx.channel.id}:{ctx.author.id}",
                 # Extra context (available if you want in the workflow)
                 "user_id": ctx.author.id,
                 "username": ctx.author.name,
