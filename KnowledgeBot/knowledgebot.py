@@ -224,7 +224,7 @@ class KnowledgeBot(commands.Cog):
         )
         await ctx.send(embed=embed)
 
-    @commands.command(name="ask", aliases=["question", "feedback", "submit", "ticket"])
+    @commands.command(name="agent")
     @commands.guild_only()
     async def submit_feedback(self, ctx: commands.Context, *, feedback: str):
         """
