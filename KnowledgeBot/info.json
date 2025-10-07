@@ -1,0 +1,8 @@
+{
+    "name": "KnowledgeBot",
+    "short": "AI-powered support ticket categorization and routing",
+    "description": "An intelligent Discord bot that categorizes user feedback and routes it to appropriate departments using AI analysis.",
+    "author": ["Noxix"],
+    "version": "1.0.0",
+    "end_user_data_statement": "This cog stores user feedback and categorization data for support ticket routing."
+}
