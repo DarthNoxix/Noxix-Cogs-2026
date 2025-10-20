@@ -1,4 +1,3 @@
-from Noxix_Utils import Cog, CogsUtils  # isort:skip
 from redbot.core import commands, Config  # isort:skip
 from redbot.core.bot import Red  # isort:skip
 from redbot.core.i18n import Translator, cog_i18n  # isort:skip
@@ -52,11 +51,11 @@ class GiveawayView(discord.ui.View):
 
 
 @cog_i18n(_)
-class DevAccessGiveaway(Cog):
+class DevAccessGiveaway(commands.Cog):
     """A cog for free development access giveaways!"""
 
     def __init__(self, bot: Red) -> None:
-        super().__init__(bot=bot)
+        self.bot = bot
 
         self.config: Config = Config.get_conf(
             self,
