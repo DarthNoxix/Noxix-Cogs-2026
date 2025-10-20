@@ -44,7 +44,7 @@ class GiveawayView(discord.ui.View):
         participants = giveaway_data.get("participants", [])
         participants.append(interaction.user.id)
         await self.cog.config.guild(interaction.guild).giveaways.set_raw(
-            self.giveaway_id, "participants", participants
+            self.giveaway_id, "participants", value=participants
         )
 
         await interaction.response.send_message("Successfully entered the giveaway! Good luck! 🎉", ephemeral=True)
@@ -165,7 +165,7 @@ class DevAccessGiveaway(commands.Cog):
         message = await channel.send(embed=embed, view=view)
         
         # Update message ID in config
-        await self.config.guild(ctx.guild).giveaways.set_raw(giveaway_id, "message_id", message.id)
+        await self.config.guild(ctx.guild).giveaways.set_raw(giveaway_id, "message_id", value=message.id)
         
         # Start the countdown task
         self.bot.loop.create_task(self._countdown_task(ctx.guild, giveaway_id, duration_seconds))
@@ -253,7 +253,7 @@ class DevAccessGiveaway(commands.Cog):
         winners_count = giveaway_data.get("winners", 1)
         
         # Mark giveaway as inactive
-        await self.config.guild(guild).giveaways.set_raw(giveaway_id, "active", False)
+        await self.config.guild(guild).giveaways.set_raw(giveaway_id, "active", value=False)
         
         # Get the message to update
         message_id = giveaway_data.get("message_id")
